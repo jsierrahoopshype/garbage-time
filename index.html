@@ -3,150 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HoopsMatic — NBA Garbage Time Stats</title>
-<meta name="description" content="NBA garbage-time stats: official vs real production, stat-padders, and biggest droppers once garbage time is stripped out." />
-<style>
-  :root {
-    --bg: #0c0f14;
-    --panel: #141922;
-    --panel-2: #1b212c;
-    --line: #28303d;
-    --text: #e8edf4;
-    --muted: #93a0b4;
-    --accent: #ff7a45;
-    --accent-2: #4f9dff;
-    --good: #34d399;
-    --bad: #f87171;
-    --chip: #222b38;
-    --shadow: 0 8px 28px rgba(0,0,0,.45);
-    --radius: 14px;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: radial-gradient(1200px 600px at 80% -10%, #16202e 0%, var(--bg) 55%) fixed;
-    color: var(--text);
-    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    padding-bottom: 60px;
-  }
-  a { color: var(--accent-2); }
-  .wrap { max-width: 1060px; margin: 0 auto; padding: 22px 16px; }
-
-  header.site { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  header.site .brand { font-size: 26px; font-weight: 800; letter-spacing: -.4px; }
-  header.site .brand b { color: var(--accent); }
-  header.site .tag { color: var(--muted); font-size: 14px; }
-  header.site .updated { margin-left: auto; color: var(--muted); font-size: 12px; }
-
-  .rule {
-    margin: 16px 0 20px; padding: 14px 16px; background: var(--panel);
-    border: 1px solid var(--line); border-left: 4px solid var(--accent);
-    border-radius: 10px; color: #cdd6e3; font-size: 13.5px;
-  }
-  .rule b { color: var(--accent); }
-
-  .controls {
-    position: sticky; top: 0; z-index: 30;
-    display: flex; gap: 10px 14px; flex-wrap: wrap; align-items: flex-end;
-    padding: 12px; margin-bottom: 18px;
-    background: rgba(20,25,34,.92); backdrop-filter: blur(8px);
-    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
-  }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field > label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
-  select, input[type="number"], input[type="text"] {
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-    border-radius: 9px; padding: 8px 10px; font-size: 14px; outline: none;
-  }
-  select:focus, input:focus { border-color: var(--accent-2); }
-  input[type="number"] { width: 78px; }
-
-  .toggle { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
-  .toggle button {
-    border: 0; background: transparent; color: var(--muted); cursor: pointer;
-    padding: 6px 12px; border-radius: 7px; font-size: 13px; font-weight: 600;
-  }
-  .toggle button.active { background: var(--accent); color: #1a1206; }
-
-  .search-wrap { position: relative; flex: 1 1 240px; min-width: 220px; }
-  .search-wrap input { width: 100%; }
-  .typeahead {
-    position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: var(--shadow); max-height: 320px; overflow-y: auto; display: none;
-  }
-  .typeahead.open { display: block; }
-  .ta-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; }
-  .ta-item:hover, .ta-item.active { background: var(--chip); }
-  .ta-item img { width: 34px; height: 26px; object-fit: cover; border-radius: 5px; background: #222; }
-  .ta-item .nm { font-weight: 600; }
-  .ta-empty { padding: 10px; color: var(--muted); }
-
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
-  .card .hd { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .card .hd h2 { margin: 0; font-size: 17px; }
-  .card .hd .sub { color: var(--muted); font-size: 12.5px; }
-  .card .bd { padding: 4px 0 6px; }
-
-  /* Player drilldown */
-  #player.card { display: none; }
-  .p-head { display: flex; align-items: center; gap: 16px; padding: 16px; }
-  .p-head img.shot { width: 92px; height: 67px; object-fit: cover; border-radius: 10px; background: #222b38; border: 1px solid var(--line); }
-  .p-head .nm { font-size: 22px; font-weight: 800; }
-  .p-head .meta { color: var(--muted); font-size: 13px; }
-  .p-close { margin-left: auto; cursor: pointer; color: var(--muted); border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
-  .statpicker { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
-  .statpicker button { border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; font-weight: 600; }
-  .statpicker button.active { background: var(--accent-2); color: #06101f; border-color: transparent; }
-
-  .tbl-scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-  th:first-child, td:first-child { text-align: left; }
-  thead th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; z-index: 1; }
-  tbody tr:hover { background: rgba(79,157,255,.06); }
-  td.delta, th.delta { background: rgba(255,122,69,.10); font-weight: 700; }
-  td.delta.neg { color: var(--bad); }
-  td.delta.pos { color: var(--good); }
-  tr.career-row td { background: rgba(79,157,255,.08); font-weight: 800; border-top: 2px solid var(--accent-2); }
-  .rank { color: var(--muted); width: 34px; }
-  .pcell { display: flex; align-items: center; gap: 10px; }
-  .pcell img { width: 32px; height: 24px; object-fit: cover; border-radius: 5px; background: #222b38; }
-  .pcell .lnk { cursor: pointer; font-weight: 600; }
-  .pcell .lnk:hover { color: var(--accent-2); text-decoration: underline; }
-  .muted { color: var(--muted); }
-
-  /* Leaderboard tabs */
-  .lb-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-  .lb-tabs button {
-    border: 1px solid var(--line); background: var(--panel-2); color: var(--muted);
-    border-radius: 10px; padding: 9px 13px; cursor: pointer; font-weight: 700; font-size: 13px;
-  }
-  .lb-tabs button.active { background: var(--accent); color: #1a1206; border-color: transparent; }
-  .lb-desc { color: var(--muted); font-size: 12.5px; padding: 0 16px 10px; }
-  .star-toggle { display: none; gap: 8px; align-items: center; padding: 4px 16px 12px; }
-  .star-toggle.show { display: flex; }
-  .star-toggle .lbl { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-
-  .empty { padding: 24px 16px; color: var(--muted); text-align: center; }
-  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
-  .loading { padding: 40px; text-align: center; color: var(--muted); }
-  @media (max-width: 600px) {
-    header.site .updated { width: 100%; margin: 4px 0 0; }
-    .p-head img.shot { width: 70px; height: 51px; }
-    .p-head .nm { font-size: 18px; }
-    th, td { padding: 8px 9px; }
-  }
-</style>
+<title>NBA Garbage-Time Stats: Stat-Padders & Real vs Official | HoopsMatic</title>
+<meta name="description" content="Search any NBA player's real vs official production once garbage time is stripped out, plus leaderboards for the biggest stat-padders and droppers, 2016-17 to 2025-26." />
+<link rel="canonical" href="https://jsierrahoopshype.github.io/garbage-time/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="HoopsMatic" />
+<meta property="og:title" content="NBA Garbage-Time Stats | HoopsMatic" />
+<meta property="og:description" content="Real vs official NBA production once garbage time is stripped out — stat-padders, biggest droppers, and per-player drilldowns." />
+<meta property="og:url" content="https://jsierrahoopshype.github.io/garbage-time/" />
+<meta name="twitter:card" content="summary" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="site">
-    <div class="brand">Hoops<b>Matic</b> · Garbage Time</div>
-    <div class="tag">official vs real production, once garbage minutes are stripped</div>
-    <div class="updated" id="updated"></div>
-  </header>
+<div class="container">
+
+  <div class="tabs">
+    <a href="index.html" class="active">Search &amp; Drilldown</a>
+    <a href="leaderboards/stat-padders-career.html">Stat-Padders</a>
+    <a href="leaderboards/biggest-droppers-career.html">Biggest Droppers</a>
+    <a href="leaderboards/star-stat-padders-career.html">Star Stat-Padders</a>
+    <a href="p/index.html">All Players</a>
+  </div>
+
+  <div class="hdr">
+    <h1>NBA Garbage Time</h1>
+    <span class="brand">HoopsMatic</span>
+  </div>
+  <div class="subtitle">
+    Official vs real production, once garbage minutes are stripped — search a player to
+    drill down, or browse the leaderboards. Seasons 2016-17 through 2025-26.
+    <span class="stamp" id="stamp"></span>
+  </div>
 
   <div class="rule" id="rule"></div>
 
@@ -175,49 +65,52 @@
 
   <div class="loading" id="loading">Loading garbage-time data…</div>
 
-  <!-- Player drilldown -->
-  <section class="card" id="player">
+  <section class="section" id="player" hidden>
     <div class="p-head">
       <img class="shot" id="pShot" alt="" />
       <div>
         <div class="nm" id="pName"></div>
         <div class="meta" id="pMeta"></div>
       </div>
-      <button class="p-close" id="pClose">✕ Close</button>
+      <div class="p-actions">
+        <a class="p-link" id="pFull" href="#">View full page →</a>
+        <button class="p-close" id="pClose">✕ Close</button>
+      </div>
     </div>
     <div class="statpicker" id="statPicker"></div>
-    <div class="tbl-scroll">
-      <table id="pTable"></table>
+    <div class="table-wrap">
+      <table class="lb" id="pTable"></table>
     </div>
   </section>
 
-  <!-- Leaderboards -->
-  <section class="card" id="board" style="display:none">
-    <div class="hd" style="flex-wrap:wrap; gap:10px;">
+  <section id="board" hidden>
+    <div class="block-head">
       <h2>Leaderboards</h2>
-      <div class="lb-tabs" id="lbTabs" style="margin-left:auto">
-        <button data-lb="padders" class="active">Stat-Padders</button>
-        <button data-lb="droppers">Biggest Droppers</button>
-        <button data-lb="stars">Star Stat-Padders</button>
-      </div>
+      <a class="more" id="lbFull" href="#">View full leaderboard page →</a>
     </div>
-    <div class="lb-desc" id="lbDesc"></div>
-    <div class="star-toggle" id="starToggle">
-      <span class="lbl">Star threshold (official PPG)</span>
+    <div class="chips" id="lbTabs" style="margin-bottom:.7rem">
+      <button class="chip active" data-lb="padders">Stat-Padders</button>
+      <button class="chip" data-lb="droppers">Biggest Droppers</button>
+      <button class="chip" data-lb="stars">Star Stat-Padders</button>
+    </div>
+    <div class="field" id="starToggle" style="display:none;margin-bottom:.7rem">
+      <label>Star threshold (official PPG)</label>
       <div class="toggle" id="thrToggle">
         <button data-thr="15">15+</button>
         <button data-thr="20" class="active">20+</button>
         <button data-thr="25">25+</button>
       </div>
     </div>
-    <div class="tbl-scroll">
-      <table id="lbTable"></table>
+    <div class="hint" id="lbDesc" style="margin-bottom:.7rem;color:var(--text-secondary);font-size:.8rem"></div>
+    <div class="table-wrap">
+      <table class="lb" id="lbTable"></table>
     </div>
   </section>
 
-  <footer>
-    HoopsMatic · Garbage-time splits derived from play-by-play. "Real" numbers exclude garbage-time stretches; "official" match the box score.
-  </footer>
+  <div class="foot">
+    HoopsMatic · Garbage-time splits derived from play-by-play. "Real" numbers exclude garbage-time
+    stretches; "official" match the box score. Headshots via cdn.nba.com.
+  </div>
 </div>
 
 <script>
@@ -225,13 +118,12 @@
 
 const FALLBACK_SHOT =
   "data:image/svg+xml;utf8," + encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' width='260' height='190'><rect width='100%' height='100%' fill='#222b38'/>" +
-    "<circle cx='130' cy='78' r='34' fill='#3a4658'/><rect x='74' y='120' width='112' height='70' rx='20' fill='#3a4658'/></svg>"
+    "<svg xmlns='http://www.w3.org/2000/svg' width='260' height='190'><rect width='100%' height='100%' fill='#e8e8ea'/>" +
+    "<circle cx='130' cy='78' r='34' fill='#c7c7cc'/><rect x='74' y='120' width='112' height='70' rx='20' fill='#c7c7cc'/></svg>"
   );
 function headshot(id) { return "https://cdn.nba.com/headshots/nba/latest/260x190/" + id + ".png"; }
 function onShotErr(img) { if (img.src !== FALLBACK_SHOT) { img.onerror = null; img.src = FALLBACK_SHOT; } }
 
-// ---- stat metadata ----
 const COUNT_STATS = [
   { key: "pts", label: "PTS" },
   { key: "reb", label: "REB" },
@@ -249,20 +141,22 @@ const STAT_LABEL = {};
 COUNT_STATS.concat(RATE_STATS).forEach(s => STAT_LABEL[s.key] = s.label);
 const RATE_KEYS = new Set(RATE_STATS.map(s => s.key));
 
+const BOARD_FILE = { padders: "stat-padders", droppers: "biggest-droppers", stars: "star-stat-padders" };
+
 const state = {
   data: null,
   season: "career",
-  mode: "pg",        // "pg" | "total"
+  mode: "pg",
   minGames: 30,
-  lb: "padders",     // padders | droppers | stars
+  lb: "padders",
   threshold: 20,
   drillStat: "pts",
   player: null,
   taIndex: -1,
   taMatches: [],
+  dupSlugs: new Set(),
 };
 
-// ---- helpers ----
 function statObj(player, season) {
   return season === "career" ? player.career : (player.seasons[season] || null);
 }
@@ -272,59 +166,65 @@ function bucketValue(o, statKey, b) {
   const v = o[statKey];
   return Array.isArray(v) ? v[b] : 0;
 }
-// per-game aware formatter for the active display mode
 function fmtCount(total, gp) {
   if (state.mode === "pg") return gp > 0 ? (total / gp).toFixed(1) : "0.0";
   return Math.round(total).toLocaleString();
 }
 function fmtRate(v) { return (v * 100).toFixed(1) + "%"; }
-function signed(n, digits) {
-  const s = n.toFixed(digits);
-  return (n > 0 ? "+" : "") + s;
+function signed(n, digits) { return (n > 0 ? "+" : "") + n.toFixed(digits); }
+
+function playerSlug(p) { return state.dupSlugs.has(p.slug) ? p.slug + "-" + p.id : p.slug; }
+function playerPath(p) { return "p/" + playerSlug(p) + ".html"; }
+function lbPagePath() {
+  const seas = state.season === "career" ? "career" : state.season;
+  return "leaderboards/" + BOARD_FILE[state.lb] + "-" + seas + ".html";
 }
 
-// =====================================================================
-// INIT
-// =====================================================================
 fetch("data/garbage_time_for_web.json")
   .then(r => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
   .then(init)
   .catch(err => {
     document.getElementById("loading").innerHTML =
-      "Could not load <code>data/garbage_time_for_web.json</code>.<br><span class='muted'>" +
+      "Could not load <code>data/garbage_time_for_web.json</code>.<br><span class='dash'>" +
       String(err) + "</span>";
   });
 
 function init(data) {
+  data.players = (data.players || []).filter(p => p.name && p.name.trim());
   state.data = data;
   document.getElementById("loading").style.display = "none";
-  document.getElementById("board").style.display = "";
+  document.getElementById("board").hidden = false;
 
   document.getElementById("rule").innerHTML =
-    "<b>Garbage time</b> — " + (data.garbage_rule || "");
+    '<span class="lbl">Garbage time</span>' + escapeHtml(data.garbage_rule || "");
   if (data.updated) {
     const d = new Date(data.updated);
-    document.getElementById("updated").textContent =
-      "Updated " + (isNaN(d) ? data.updated : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }));
+    document.getElementById("stamp").textContent =
+      "· updated " + (isNaN(d) ? data.updated : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }));
   }
 
-  // season selector
   const seasons = (data.seasons || []).slice().sort().reverse();
   const sel = document.getElementById("season");
   sel.innerHTML = '<option value="career">Career (all seasons)</option>' +
     seasons.map(s => `<option value="${s}">${s}</option>`).join("");
 
-  // pre-build search index
+  const counts = {};
+  data.players.forEach(p => { counts[p.slug] = (counts[p.slug] || 0) + 1; });
+  state.dupSlugs = new Set(Object.keys(counts).filter(s => counts[s] > 1));
+
   state.search = data.players.map(p => ({ p, low: p.name.toLowerCase() }));
 
   wireControls();
   buildStatPicker();
   renderLeaderboard();
+
+  const want = new URLSearchParams(location.search).get("player");
+  if (want) {
+    const p = data.players.find(x => playerSlug(x) === want || x.slug === want);
+    if (p) selectPlayer(p.id, { noScroll: false });
+  }
 }
 
-// =====================================================================
-// CONTROLS
-// =====================================================================
 function wireControls() {
   document.getElementById("season").addEventListener("change", e => {
     state.season = e.target.value;
@@ -345,7 +245,7 @@ function wireControls() {
     b.addEventListener("click", () => {
       state.lb = b.dataset.lb;
       setActive("#lbTabs button", b);
-      document.getElementById("starToggle").classList.toggle("show", state.lb === "stars");
+      document.getElementById("starToggle").style.display = state.lb === "stars" ? "" : "none";
       renderLeaderboard();
     });
   });
@@ -357,7 +257,6 @@ function wireControls() {
     });
   });
   document.getElementById("pClose").addEventListener("click", closePlayer);
-
   setupSearch();
 }
 function setActive(sel, el) {
@@ -366,14 +265,18 @@ function setActive(sel, el) {
 }
 function renderAll() { renderLeaderboard(); if (state.player) renderPlayer(); }
 
-// =====================================================================
-// SEARCH / TYPE-AHEAD
-// =====================================================================
+function wirePlayerLink(el, id) {
+  el.addEventListener("click", e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    selectPlayer(id);
+  });
+}
+
 function setupSearch() {
   const input = document.getElementById("search");
   const box = document.getElementById("typeahead");
-
-  input.addEventListener("input", () => { runSearch(input.value); });
+  input.addEventListener("input", () => runSearch(input.value));
   input.addEventListener("focus", () => { if (input.value.trim()) runSearch(input.value); });
   input.addEventListener("keydown", e => {
     const items = state.taMatches;
@@ -383,9 +286,7 @@ function setupSearch() {
     else if (e.key === "Enter") { e.preventDefault(); const pick = items[state.taIndex] || items[0]; if (pick) selectPlayer(pick.id); }
     else if (e.key === "Escape") { closeTa(); }
   });
-  document.addEventListener("click", e => {
-    if (!e.target.closest(".search-wrap")) closeTa();
-  });
+  document.addEventListener("click", e => { if (!e.target.closest(".search-wrap")) closeTa(); });
 }
 function runSearch(q) {
   const box = document.getElementById("typeahead");
@@ -394,7 +295,7 @@ function runSearch(q) {
   const matches = [];
   for (const row of state.search) {
     const idx = row.low.indexOf(q);
-    if (idx !== -1) matches.push({ id: row.p.id, name: row.p.name, score: idx === 0 ? 0 : 1 });
+    if (idx !== -1) matches.push({ id: row.p.id, p: row.p, name: row.p.name, score: idx === 0 ? 0 : 1 });
     if (matches.length > 40) break;
   }
   matches.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
@@ -411,19 +312,14 @@ function runSearch(q) {
 function paintTa() {
   const box = document.getElementById("typeahead");
   box.innerHTML = state.taMatches.map((m, i) =>
-    `<div class="ta-item ${i === state.taIndex ? "active" : ""}" data-id="${m.id}">
+    `<a class="ta-item ${i === state.taIndex ? "active" : ""}" href="${playerPath(m.p)}" data-id="${m.id}">
        <img src="${headshot(m.id)}" onerror="onShotErr(this)" alt="">
        <span class="nm">${escapeHtml(m.name)}</span>
-     </div>`).join("");
-  box.querySelectorAll(".ta-item").forEach(el => {
-    el.addEventListener("click", () => selectPlayer(parseInt(el.dataset.id, 10)));
-  });
+     </a>`).join("");
+  box.querySelectorAll(".ta-item").forEach(el => wirePlayerLink(el, parseInt(el.dataset.id, 10)));
 }
 function closeTa() { document.getElementById("typeahead").classList.remove("open"); state.taIndex = -1; }
 
-// =====================================================================
-// PLAYER DRILLDOWN
-// =====================================================================
 function buildStatPicker() {
   const wrap = document.getElementById("statPicker");
   wrap.innerHTML = COUNT_STATS.concat(RATE_STATS).map(s =>
@@ -436,28 +332,29 @@ function buildStatPicker() {
     });
   });
 }
-function selectPlayer(id) {
+function selectPlayer(id, opts) {
+  opts = opts || {};
   const p = state.data.players.find(x => x.id === id);
   if (!p) return;
   state.player = p;
   closeTa();
   document.getElementById("search").value = "";
   renderPlayer();
-  document.getElementById("player").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!opts.noScroll) document.getElementById("player").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function closePlayer() {
   state.player = null;
-  document.getElementById("player").style.display = "none";
+  document.getElementById("player").hidden = true;
 }
 function renderPlayer() {
   const p = state.player;
   if (!p) return;
-  const card = document.getElementById("player");
-  card.style.display = "";
+  document.getElementById("player").hidden = false;
 
   const shot = document.getElementById("pShot");
   shot.src = headshot(p.id); shot.onerror = function () { onShotErr(this); };
   document.getElementById("pName").textContent = p.name;
+  document.getElementById("pFull").href = playerPath(p);
 
   const seasonKeys = Object.keys(p.seasons || {}).sort().reverse();
   const careerGp = p.career ? p.career.gp : 0;
@@ -470,11 +367,11 @@ function renderPlayer() {
   const label = STAT_LABEL[statKey];
 
   let html = "<thead><tr>" +
-    "<th>Season</th><th>GP</th>" +
+    "<th class='left'>Season</th><th>GP</th>" +
     `<th>Official ${label}${unit}</th>` +
     `<th>Real ${label}${unit}</th>` +
     `<th>Garbage ${label}${unit}</th>` +
-    `<th class="delta">Δ (real − official)</th>` +
+    `<th class="dcol">Δ (real − official)</th>` +
     "</tr></thead><tbody>";
 
   function row(seasonName, o, isCareer) {
@@ -482,23 +379,22 @@ function renderPlayer() {
     const off = bucketValue(o, statKey, 0);
     const real = bucketValue(o, statKey, 1);
     const gar = bucketValue(o, statKey, 2);
-    let offS, realS, garS, delta, deltaS, dg;
+    let offS, realS, garS, delta, deltaS;
     if (isRate) {
       offS = fmtRate(off); realS = fmtRate(real); garS = fmtRate(gar);
       delta = (real - off) * 100;
       deltaS = signed(delta, 1) + " pp";
-      dg = 1; // small
     } else {
       offS = fmtCount(off, o.gp); realS = fmtCount(real, o.gp); garS = fmtCount(gar, o.gp);
       delta = state.mode === "pg" ? (o.gp > 0 ? (real - off) / o.gp : 0) : (real - off);
       deltaS = state.mode === "pg" ? signed(delta, 1) : signed(delta, 0);
     }
-    const cls = delta < -0.0001 ? "neg" : (delta > 0.0001 ? "pos" : "");
+    const cls = delta < -0.0001 ? "neg" : (delta > 0.0001 ? "pos" : "flat");
     return `<tr class="${isCareer ? "career-row" : ""}">` +
-      `<td>${isCareer ? "Career" : seasonName}</td>` +
+      `<td class="left">${isCareer ? "Career" : seasonName}</td>` +
       `<td>${o.gp}</td>` +
       `<td>${offS}</td><td>${realS}</td><td>${garS}</td>` +
-      `<td class="delta ${cls}">${deltaS}</td></tr>`;
+      `<td class="dcol delta ${cls}">${deltaS}</td></tr>`;
   }
 
   for (const s of seasonKeys) html += row(s, p.seasons[s], false);
@@ -507,22 +403,18 @@ function renderPlayer() {
   document.getElementById("pTable").innerHTML = html;
 }
 
-// =====================================================================
-// LEADERBOARDS
-// =====================================================================
 const LB_DESC = {
   padders: "Players ranked by the most garbage-time points accrued — pure stat-padding volume.",
   droppers: "Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG).",
   stars: "Real rotation stars (by official scoring) who still pad the most in garbage time.",
 };
-
 function qualifies(o) { return o && o.gp >= state.minGames; }
 
 function renderLeaderboard() {
   document.getElementById("lbDesc").textContent = LB_DESC[state.lb];
+  document.getElementById("lbFull").href = lbPagePath();
   const season = state.season;
   const rows = [];
-
   for (const p of state.data.players) {
     const o = statObj(p, season);
     if (!qualifies(o)) continue;
@@ -534,8 +426,7 @@ function renderLeaderboard() {
 
   let list, columns;
   const garTotalHdr = state.mode === "pg" ? "Garbage PTS /g" : "Garbage PTS";
-  const garVal = r => state.mode === "pg" ? (r.o.gp > 0 ? r.garPts / r.o.gp : 0) : r.garPts;
-  const garFmt = r => state.mode === "pg" ? garVal(r).toFixed(1) : Math.round(r.garPts).toLocaleString();
+  const garFmt = r => state.mode === "pg" ? (r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(1) : "0.0") : Math.round(r.garPts).toLocaleString();
   const garShare = r => r.o.pts[0] > 0 ? (r.garPts / r.o.pts[0] * 100) : 0;
 
   if (state.lb === "droppers") {
@@ -545,10 +436,9 @@ function renderLeaderboard() {
       ["Official PPG", r => r.offPpg.toFixed(1)],
       ["Real PPG", r => r.realPpg.toFixed(1)],
       ["Δ PPG", r => signed(r.deltaPpg, 1), true,
-        r => r.deltaPpg < 0 ? "neg" : (r.deltaPpg > 0 ? "pos" : "")],
+        r => r.deltaPpg < 0 ? "neg" : (r.deltaPpg > 0 ? "pos" : "flat")],
     ];
   } else {
-    // padders + stars share metric (garbage points), stars filtered by official PPG
     let base = rows;
     if (state.lb === "stars") base = rows.filter(r => r.offPpg >= state.threshold);
     list = base.slice().sort((a, b) => b.garPts - a.garPts).slice(0, 100);
@@ -560,8 +450,8 @@ function renderLeaderboard() {
     ];
   }
 
-  let html = "<thead><tr><th class='rank'>#</th><th>Player</th>" +
-    columns.map(c => `<th class="${c[2] ? "delta" : ""}">${c[0]}</th>`).join("") +
+  let html = "<thead><tr><th class='rank'>#</th><th class='left'>Player</th>" +
+    columns.map(c => `<th class="${c[2] ? "dcol" : ""}">${c[0]}</th>`).join("") +
     "</tr></thead><tbody>";
 
   if (!list.length) {
@@ -569,22 +459,20 @@ function renderLeaderboard() {
   } else {
     list.forEach((r, i) => {
       html += `<tr><td class="rank">${i + 1}</td>` +
-        `<td><span class="pcell"><img src="${headshot(r.p.id)}" onerror="onShotErr(this)" alt="">` +
-        `<span class="lnk" data-id="${r.p.id}">${escapeHtml(r.p.name)}</span></span></td>` +
+        `<td class="left"><span class="pcell"><img src="${headshot(r.p.id)}" onerror="onShotErr(this)" alt="">` +
+        `<a href="${playerPath(r.p)}" data-id="${r.p.id}">${escapeHtml(r.p.name)}</a></span></td>` +
         columns.map(c => {
           const extra = c[3] ? c[3](r) : "";
-          return `<td class="${c[2] ? "delta " + extra : ""}">${c[1](r)}</td>`;
+          return `<td class="${c[2] ? "dcol delta " + extra : ""}">${c[1](r)}</td>`;
         }).join("") + "</tr>";
     });
   }
   html += "</tbody>";
   const t = document.getElementById("lbTable");
   t.innerHTML = html;
-  t.querySelectorAll(".lnk").forEach(el =>
-    el.addEventListener("click", () => selectPlayer(parseInt(el.dataset.id, 10))));
+  t.querySelectorAll(".pcell a").forEach(el => wirePlayerLink(el, parseInt(el.dataset.id, 10)));
 }
 
-// ---- util ----
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
