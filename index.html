@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NBA Garbage-Time Stats: Stat-Padders & Real vs Official | HoopsMatic</title>
-<meta name="description" content="Search any NBA player's real vs official production once garbage time is stripped out, plus leaderboards for the biggest stat-padders and droppers, 2016-17 to 2025-26." />
+<title>NBA Garbage-Time Stats: Garbage-Time Leaders & Real vs Official | HoopsMatic</title>
+<meta name="description" content="Search any NBA player's real vs official production once garbage time is stripped out, plus garbage-time leaders for points, rebounds, assists, steals and blocks, 2016-17 to 2025-26." />
 <link rel="canonical" href="https://jsierrahoopshype.github.io/garbage-time/" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="HoopsMatic" />
 <meta property="og:title" content="NBA Garbage-Time Stats | HoopsMatic" />
-<meta property="og:description" content="Real vs official NBA production once garbage time is stripped out — stat-padders, biggest droppers, and per-player drilldowns." />
+<meta property="og:description" content="Real vs official NBA production once garbage time is stripped out — garbage-time leaders, biggest droppers, and per-player drilldowns." />
 <meta property="og:url" content="https://jsierrahoopshype.github.io/garbage-time/" />
 <meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,9 +22,7 @@
 
   <div class="tabs">
     <a href="index.html" class="active">Search &amp; Drilldown</a>
-    <a href="leaderboards/stat-padders-career.html">Stat-Padders</a>
-    <a href="leaderboards/biggest-droppers-career.html">Biggest Droppers</a>
-    <a href="leaderboards/star-stat-padders-career.html">Star Stat-Padders</a>
+    <a href="leaderboards/index.html">Leaderboards</a>
     <a href="p/index.html">All Players</a>
   </div>
 
@@ -65,6 +63,7 @@
 
   <div class="loading" id="loading">Loading garbage-time data…</div>
 
+  <!-- Player drilldown -->
   <section class="section" id="player" hidden>
     <div class="p-head">
       <img class="shot" id="pShot" alt="" />
@@ -83,15 +82,17 @@
     </div>
   </section>
 
+  <!-- Leaderboards -->
   <section id="board" hidden>
     <div class="block-head">
-      <h2>Leaderboards</h2>
-      <a class="more" id="lbFull" href="#">View full leaderboard page →</a>
+      <h2>Garbage-Time Leaderboards</h2>
+      <a class="more" href="leaderboards/index.html">All leaderboards →</a>
     </div>
-    <div class="chips" id="lbTabs" style="margin-bottom:.7rem">
-      <button class="chip active" data-lb="padders">Stat-Padders</button>
-      <button class="chip" data-lb="droppers">Biggest Droppers</button>
-      <button class="chip" data-lb="stars">Star Stat-Padders</button>
+    <div class="tilegrid" id="lbTiles"></div>
+
+    <div class="block-head" style="margin-top:1.5rem">
+      <h2 id="lbTitle">Garbage-Time Points</h2>
+      <a class="more" id="lbFull" href="#">View full leaderboard page →</a>
     </div>
     <div class="field" id="starToggle" style="display:none;margin-bottom:.7rem">
       <label>Star threshold (official PPG)</label>
@@ -103,7 +104,7 @@
     </div>
     <div class="hint" id="lbDesc" style="margin-bottom:.7rem;color:var(--text-secondary);font-size:.8rem"></div>
     <div class="table-wrap">
-      <table class="lb" id="lbTable"></table>
+      <table class="lb sortable" id="lbTable"></table>
     </div>
   </section>
 
@@ -124,6 +125,7 @@ const FALLBACK_SHOT =
 function headshot(id) { return "https://cdn.nba.com/headshots/nba/latest/260x190/" + id + ".png"; }
 function onShotErr(img) { if (img.src !== FALLBACK_SHOT) { img.onerror = null; img.src = FALLBACK_SHOT; } }
 
+// ---- stat metadata ----
 const COUNT_STATS = [
   { key: "pts", label: "PTS" },
   { key: "reb", label: "REB" },
@@ -141,22 +143,49 @@ const STAT_LABEL = {};
 COUNT_STATS.concat(RATE_STATS).forEach(s => STAT_LABEL[s.key] = s.label);
 const RATE_KEYS = new Set(RATE_STATS.map(s => s.key));
 
-const BOARD_FILE = { padders: "stat-padders", droppers: "biggest-droppers", stars: "star-stat-padders" };
+// Per-stat garbage boards. Keys double as the pre-rendered file stems
+// (kept in sync with build_pages.py); PTS lives at garbage-pts.
+const PER_STAT = {
+  "garbage-pts": { stat: "pts", label: "PTS", name: "Garbage-Time Points", full: "points" },
+  "garbage-reb": { stat: "reb", label: "REB", name: "Garbage-Time Rebounds", full: "rebounds" },
+  "garbage-ast": { stat: "ast", label: "AST", name: "Garbage-Time Assists", full: "assists" },
+  "garbage-stl": { stat: "stl", label: "STL", name: "Garbage-Time Steals", full: "steals" },
+  "garbage-blk": { stat: "blk", label: "BLK", name: "Garbage-Time Blocks", full: "blocks" },
+};
+// Tiles are the primary leaderboard navigation on the home page.
+const TILES = [
+  { lb: "garbage-pts", ab: "PTS", name: "Points" },
+  { lb: "garbage-reb", ab: "REB", name: "Rebounds" },
+  { lb: "garbage-ast", ab: "AST", name: "Assists" },
+  { lb: "garbage-stl", ab: "STL", name: "Steals" },
+  { lb: "garbage-blk", ab: "BLK", name: "Blocks" },
+  { lb: "droppers", ab: "Δ", name: "Biggest Droppers" },
+  { lb: "stars", ab: "★", name: "Star Stat-Padders" },
+];
+// board key -> pre-rendered filename stem
+function boardStem(lb) {
+  if (lb === "droppers") return "biggest-droppers";
+  if (lb === "stars") return "star-stat-padders";
+  return lb; // garbage-<stat>
+}
 
 const state = {
   data: null,
   season: "career",
-  mode: "pg",
+  mode: "pg",        // "pg" | "total"
   minGames: 30,
-  lb: "padders",
+  lb: "garbage-pts", // garbage-pts|reb|ast|stl|blk | droppers | stars
   threshold: 20,
   drillStat: "pts",
   player: null,
   taIndex: -1,
   taMatches: [],
   dupSlugs: new Set(),
+  sortKey: null,     // active leaderboard sort column id (null = board default)
+  sortDir: "desc",
 };
 
+// ---- helpers ----
 function statObj(player, season) {
   return season === "career" ? player.career : (player.seasons[season] || null);
 }
@@ -171,15 +200,21 @@ function fmtCount(total, gp) {
   return Math.round(total).toLocaleString();
 }
 function fmtRate(v) { return (v * 100).toFixed(1) + "%"; }
+function fmtTotal(n) { return Math.round(n).toLocaleString(); }
 function signed(n, digits) { return (n > 0 ? "+" : "") + n.toFixed(digits); }
 
+// Collision-safe player slug -> path. Must match build_pages.py: duplicate slugs
+// across the dataset are disambiguated with the player id.
 function playerSlug(p) { return state.dupSlugs.has(p.slug) ? p.slug + "-" + p.id : p.slug; }
 function playerPath(p) { return "p/" + playerSlug(p) + ".html"; }
 function lbPagePath() {
   const seas = state.season === "career" ? "career" : state.season;
-  return "leaderboards/" + BOARD_FILE[state.lb] + "-" + seas + ".html";
+  return "leaderboards/" + boardStem(state.lb) + "-" + seas + ".html";
 }
 
+// =====================================================================
+// INIT
+// =====================================================================
 fetch("data/garbage_time_for_web.json")
   .then(r => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
   .then(init)
@@ -190,6 +225,8 @@ fetch("data/garbage_time_for_web.json")
   });
 
 function init(data) {
+  // The feed includes non-player aggregate rows (blank name/slug, zeroed box
+  // score). Drop them so they never reach search, leaderboards or links.
   data.players = (data.players || []).filter(p => p.name && p.name.trim());
   state.data = data;
   document.getElementById("loading").style.display = "none";
@@ -208,6 +245,7 @@ function init(data) {
   sel.innerHTML = '<option value="career">Career (all seasons)</option>' +
     seasons.map(s => `<option value="${s}">${s}</option>`).join("");
 
+  // duplicate-slug detection (kept identical to the generator)
   const counts = {};
   data.players.forEach(p => { counts[p.slug] = (counts[p.slug] || 0) + 1; });
   state.dupSlugs = new Set(Object.keys(counts).filter(s => counts[s] > 1));
@@ -216,8 +254,10 @@ function init(data) {
 
   wireControls();
   buildStatPicker();
+  buildTiles();
   renderLeaderboard();
 
+  // deep link: ?player=<slug> opens that player's drilldown
   const want = new URLSearchParams(location.search).get("player");
   if (want) {
     const p = data.players.find(x => playerSlug(x) === want || x.slug === want);
@@ -225,6 +265,9 @@ function init(data) {
   }
 }
 
+// =====================================================================
+// CONTROLS
+// =====================================================================
 function wireControls() {
   document.getElementById("season").addEventListener("change", e => {
     state.season = e.target.value;
@@ -239,14 +282,6 @@ function wireControls() {
       state.mode = b.dataset.mode;
       setActive("#modeToggle button", b);
       renderAll();
-    });
-  });
-  document.querySelectorAll("#lbTabs button").forEach(b => {
-    b.addEventListener("click", () => {
-      state.lb = b.dataset.lb;
-      setActive("#lbTabs button", b);
-      document.getElementById("starToggle").style.display = state.lb === "stars" ? "" : "none";
-      renderLeaderboard();
     });
   });
   document.querySelectorAll("#thrToggle button").forEach(b => {
@@ -265,6 +300,8 @@ function setActive(sel, el) {
 }
 function renderAll() { renderLeaderboard(); if (state.player) renderPlayer(); }
 
+// Intercept left-clicks on player links to open the in-page drilldown, while
+// leaving the real href intact for crawlers, new-tab and modified clicks.
 function wirePlayerLink(el, id) {
   el.addEventListener("click", e => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -273,6 +310,9 @@ function wirePlayerLink(el, id) {
   });
 }
 
+// =====================================================================
+// SEARCH / TYPE-AHEAD
+// =====================================================================
 function setupSearch() {
   const input = document.getElementById("search");
   const box = document.getElementById("typeahead");
@@ -320,6 +360,9 @@ function paintTa() {
 }
 function closeTa() { document.getElementById("typeahead").classList.remove("open"); state.taIndex = -1; }
 
+// =====================================================================
+// PLAYER DRILLDOWN
+// =====================================================================
 function buildStatPicker() {
   const wrap = document.getElementById("statPicker");
   wrap.innerHTML = COUNT_STATS.concat(RATE_STATS).map(s =>
@@ -403,67 +446,149 @@ function renderPlayer() {
   document.getElementById("pTable").innerHTML = html;
 }
 
-const LB_DESC = {
-  padders: "Players ranked by the most garbage-time points accrued — pure stat-padding volume.",
-  droppers: "Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG).",
-  stars: "Real rotation stars (by official scoring) who still pad the most in garbage time.",
-};
+// =====================================================================
+// LEADERBOARDS
+// =====================================================================
 function qualifies(o) { return o && o.gp >= state.minGames; }
 
+// Build the tiles that act as the primary leaderboard navigation.
+function buildTiles() {
+  const wrap = document.getElementById("lbTiles");
+  wrap.innerHTML = TILES.map(t =>
+    `<a class="tile ${t.lb === state.lb ? "active" : ""}" data-lb="${t.lb}" href="leaderboards/${boardStem(t.lb)}-career.html">
+       <span class="ab">${escapeHtml(t.ab)}</span>
+       <span class="tl">${escapeHtml(t.name)}</span>
+       <span class="ts">${t.lb.indexOf("garbage-") === 0 ? "Garbage /g leaders" : "Scoring board"}</span>
+     </a>`).join("");
+  wrap.querySelectorAll(".tile").forEach(el => {
+    el.addEventListener("click", e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      selectBoard(el.dataset.lb);
+    });
+  });
+}
+function selectBoard(lb) {
+  state.lb = lb;
+  state.sortKey = null;            // fall back to this board's default sort
+  document.querySelectorAll("#lbTiles .tile").forEach(t =>
+    t.classList.toggle("active", t.dataset.lb === lb));
+  document.getElementById("starToggle").style.display = lb === "stars" ? "" : "none";
+  renderLeaderboard();
+}
+
+// Per-board spec: title, blurb, row compute, columns, default sort, filter.
+function leaderboardSpec(lb) {
+  if (lb === "droppers") {
+    return {
+      title: "Biggest Droppers",
+      desc: "Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG).",
+      compute: r => { const o = r.o, gp = o.gp;
+        r.offPpg = gp > 0 ? o.pts[0] / gp : 0;
+        r.realPpg = gp > 0 ? o.pts[1] / gp : 0;
+        r.deltaPpg = r.realPpg - r.offPpg; },
+      cols: [
+        { id: "gp", label: "GP", get: r => r.o.gp, fmt: r => r.o.gp },
+        { id: "off", label: "Official PPG", get: r => r.offPpg, fmt: r => r.offPpg.toFixed(1) },
+        { id: "real", label: "Real PPG", get: r => r.realPpg, fmt: r => r.realPpg.toFixed(1) },
+        { id: "d", label: "Δ PPG", delta: true, get: r => r.deltaPpg, fmt: r => signed(r.deltaPpg, 1),
+          cls: r => r.deltaPpg < 0 ? "neg" : (r.deltaPpg > 0 ? "pos" : "flat") },
+      ],
+      defaultSort: { id: "d", dir: "asc" },
+    };
+  }
+  if (lb === "stars") {
+    return {
+      title: "Star Stat-Padders",
+      desc: "Real rotation stars (by official scoring) who still pad the most in garbage time.",
+      compute: r => { const o = r.o, gp = o.gp;
+        r.offPpg = gp > 0 ? o.pts[0] / gp : 0;
+        r.garPts = o.pts[2];
+        r.garShare = o.pts[0] > 0 ? r.garPts / o.pts[0] * 100 : 0; },
+      cols: [
+        { id: "gp", label: "GP", get: r => r.o.gp, fmt: r => r.o.gp },
+        { id: "off", label: "Official PPG", get: r => r.offPpg, fmt: r => r.offPpg.toFixed(1) },
+        { id: "gar", label: state.mode === "pg" ? "Garbage PTS /g" : "Garbage PTS", delta: true,
+          get: r => r.garPts,
+          fmt: r => state.mode === "pg" ? (r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(2) : "0.00") : fmtTotal(r.garPts) },
+        { id: "share", label: "Garbage % of pts", get: r => r.garShare, fmt: r => r.garShare.toFixed(0) + "%" },
+      ],
+      defaultSort: { id: "gar", dir: "desc" },
+      filter: r => r.offPpg >= state.threshold,
+    };
+  }
+  // per-stat garbage board
+  const meta = PER_STAT[lb], k = meta.stat, L = meta.label;
+  return {
+    title: meta.name,
+    desc: "Players ranked by their garbage-time " + meta.full + ", per game.",
+    compute: r => { const o = r.o, gp = o.gp;
+      const off = bucketValue(o, k, 0), gar = bucketValue(o, k, 2);
+      r.offPg = gp > 0 ? off / gp : 0;
+      r.garPg = gp > 0 ? gar / gp : 0;
+      r.garTot = gar;
+      r.garPct = off > 0 ? gar / off * 100 : 0; },
+    cols: [
+      { id: "gp", label: "GP", get: r => r.o.gp, fmt: r => r.o.gp },
+      { id: "offpg", label: "Official " + L + " /g", get: r => r.offPg, fmt: r => r.offPg.toFixed(1) },
+      { id: "garpg", label: "Garbage " + L + " /g", delta: true, get: r => r.garPg, fmt: r => r.garPg.toFixed(2) },
+      { id: "gartot", label: "Garbage " + L, get: r => r.garTot, fmt: r => fmtTotal(r.garTot) },
+      { id: "pct", label: "Garbage % of " + L, get: r => r.garPct, fmt: r => r.garPct.toFixed(2) + "%" },
+    ],
+    defaultSort: { id: "garpg", dir: "desc" },
+  };
+}
+
 function renderLeaderboard() {
-  document.getElementById("lbDesc").textContent = LB_DESC[state.lb];
+  const spec = leaderboardSpec(state.lb);
+  document.getElementById("lbTitle").textContent = spec.title;
+  document.getElementById("lbDesc").textContent = spec.desc;
   document.getElementById("lbFull").href = lbPagePath();
-  const season = state.season;
-  const rows = [];
+
+  let rows = [];
   for (const p of state.data.players) {
-    const o = statObj(p, season);
+    const o = statObj(p, state.season);
     if (!qualifies(o)) continue;
-    const offPpg = o.gp > 0 ? o.pts[0] / o.gp : 0;
-    const realPpg = o.gp > 0 ? o.pts[1] / o.gp : 0;
-    const garPts = o.pts[2];
-    rows.push({ p, o, offPpg, realPpg, garPts, deltaPpg: realPpg - offPpg });
+    rows.push({ p, o });
   }
+  rows.forEach(spec.compute);
+  if (spec.filter) rows = rows.filter(spec.filter);
 
-  let list, columns;
-  const garTotalHdr = state.mode === "pg" ? "Garbage PTS /g" : "Garbage PTS";
-  const garFmt = r => state.mode === "pg" ? (r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(1) : "0.0") : Math.round(r.garPts).toLocaleString();
-  const garShare = r => r.o.pts[0] > 0 ? (r.garPts / r.o.pts[0] * 100) : 0;
-
-  if (state.lb === "droppers") {
-    list = rows.slice().sort((a, b) => a.deltaPpg - b.deltaPpg).slice(0, 100);
-    columns = [
-      ["GP", r => r.o.gp],
-      ["Official PPG", r => r.offPpg.toFixed(1)],
-      ["Real PPG", r => r.realPpg.toFixed(1)],
-      ["Δ PPG", r => signed(r.deltaPpg, 1), true,
-        r => r.deltaPpg < 0 ? "neg" : (r.deltaPpg > 0 ? "pos" : "flat")],
-    ];
-  } else {
-    let base = rows;
-    if (state.lb === "stars") base = rows.filter(r => r.offPpg >= state.threshold);
-    list = base.slice().sort((a, b) => b.garPts - a.garPts).slice(0, 100);
-    columns = [
-      ["GP", r => r.o.gp],
-      ["Official PPG", r => r.offPpg.toFixed(1)],
-      [garTotalHdr, garFmt, true],
-      ["Garbage % of pts", r => garShare(r).toFixed(0) + "%"],
-    ];
+  // resolve active sort (fall back to the board default)
+  let sortId = state.sortKey, dir = state.sortDir;
+  if (!sortId || !(sortId === "player" || spec.cols.some(c => c.id === sortId))) {
+    sortId = spec.defaultSort.id; dir = spec.defaultSort.dir;
   }
+  const getter = sortId === "player"
+    ? r => r.p.name.toLowerCase()
+    : spec.cols.find(c => c.id === sortId).get;
+  rows.sort((a, b) => {
+    const x = getter(a), y = getter(b);
+    const c = x < y ? -1 : (x > y ? 1 : 0);
+    return dir === "asc" ? c : -c;
+  });
+  rows = rows.slice(0, 100);
 
-  let html = "<thead><tr><th class='rank'>#</th><th class='left'>Player</th>" +
-    columns.map(c => `<th class="${c[2] ? "dcol" : ""}">${c[0]}</th>`).join("") +
+  const th = (id, label, extraCls) => {
+    const active = id === sortId;
+    const cls = [extraCls || "", "sortable-th", active ? (dir === "asc" ? "sort-asc" : "sort-desc") : ""]
+      .filter(Boolean).join(" ");
+    return `<th class="${cls}" data-col="${id}">${escapeHtml(label)}</th>`;
+  };
+  let html = "<thead><tr><th class='rank'>#</th>" + th("player", "Player", "left") +
+    spec.cols.map(c => th(c.id, c.label, c.delta ? "dcol" : "")).join("") +
     "</tr></thead><tbody>";
 
-  if (!list.length) {
-    html += `<tr><td colspan="${columns.length + 2}" class="empty">No players meet the filters (min ${state.minGames} games${state.lb === "stars" ? ", " + state.threshold + "+ official PPG" : ""}) for ${season === "career" ? "career" : season}.</td></tr>`;
+  if (!rows.length) {
+    html += `<tr><td colspan="${spec.cols.length + 2}" class="empty">No players meet the filters (min ${state.minGames} games${state.lb === "stars" ? ", " + state.threshold + "+ official PPG" : ""}) for ${state.season === "career" ? "career" : state.season}.</td></tr>`;
   } else {
-    list.forEach((r, i) => {
+    rows.forEach((r, i) => {
       html += `<tr><td class="rank">${i + 1}</td>` +
         `<td class="left"><span class="pcell"><img src="${headshot(r.p.id)}" onerror="onShotErr(this)" alt="">` +
         `<a href="${playerPath(r.p)}" data-id="${r.p.id}">${escapeHtml(r.p.name)}</a></span></td>` +
-        columns.map(c => {
-          const extra = c[3] ? c[3](r) : "";
-          return `<td class="${c[2] ? "dcol delta " + extra : ""}">${c[1](r)}</td>`;
+        spec.cols.map(c => {
+          const extra = c.cls ? " " + c.cls(r) : "";
+          return `<td class="${c.delta ? "dcol delta" + extra : ""}">${c.fmt(r)}</td>`;
         }).join("") + "</tr>";
     });
   }
@@ -471,8 +596,18 @@ function renderLeaderboard() {
   const t = document.getElementById("lbTable");
   t.innerHTML = html;
   t.querySelectorAll(".pcell a").forEach(el => wirePlayerLink(el, parseInt(el.dataset.id, 10)));
+  t.querySelectorAll("th[data-col]").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.dataset.col;
+      if (sortId === id) state.sortDir = dir === "asc" ? "desc" : "asc";
+      else state.sortDir = id === "player" ? "asc" : "desc";
+      state.sortKey = id;
+      renderLeaderboard();
+    });
+  });
 }
 
+// ---- util ----
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -1,17 +1,6 @@
 #!/usr/bin/env python3
 """
 Pre-render static, indexable HTML for the HoopsMatic NBA garbage-time site.
-
-Reads data/garbage_time_for_web.json (produced by an external pipeline — never
-written to here) and emits, into the repo root:
-
-  p/<slug>.html               one page per player, server-rendered tables
-  p/index.html                A-Z player directory
-  leaderboards/<board>-<season>.html
-  leaderboards/index.html     leaderboard hub
-  sitemap.xml                 every generated page (+ the SPA home)
-  robots.txt                  points crawlers at the sitemap
-
 Usage:  python3 build_pages.py
 """
 
@@ -36,19 +25,78 @@ FONTS = (
     '&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">'
 )
 
-BOARDS = {
-    "stat-padders": "Stat-Padders",
+GARBAGE_STATS = [
+    ("pts", "PTS", "Points", "points"),
+    ("reb", "REB", "Rebounds", "rebounds"),
+    ("ast", "AST", "Assists", "assists"),
+    ("stl", "STL", "Steals", "steals"),
+    ("blk", "BLK", "Blocks", "blocks"),
+]
+
+SCORING_TITLE = {
     "biggest-droppers": "Biggest Droppers",
     "star-stat-padders": "Star Stat-Padders",
 }
-BOARD_BLURB = {
-    "stat-padders": "Players ranked by the most garbage-time points accrued — pure stat-padding volume.",
+SCORING_BLURB = {
     "biggest-droppers": "Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG).",
     "star-stat-padders": "Real rotation stars (%d+ official PPG) who still pad the most in garbage time." % STAR_THRESHOLD,
 }
 
+NAV_BOARDS = ([("garbage-%s" % s, "Garbage %s" % lab) for s, lab, _n, _f in GARBAGE_STATS]
+              + [("biggest-droppers", "Biggest Droppers"),
+                 ("star-stat-padders", "Star Stat-Padders")])
+
 COUNT_STATS = [("pts", "PTS"), ("reb", "REB"), ("ast", "AST"), ("stl", "STL"),
                ("blk", "BLK"), ("tov", "TOV"), ("fg3m", "3PM")]
+
+
+SORT_SCRIPT = """<script>
+(function () {
+  function val(td) {
+    var raw = td.getAttribute("data-sort");
+    if (raw === null) raw = td.textContent;
+    raw = raw.trim();
+    var num = raw.replace(/,/g, "").replace(/\\s*pp$/, "").replace(/[%+]/g, "").trim();
+    if (num !== "" && /^[-+]?[0-9]*\\.?[0-9]+$/.test(num)) return { n: parseFloat(num), s: null };
+    return { n: null, s: raw.toLowerCase() };
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("table.lb.sortable"), function (table) {
+    var head = table.tHead && table.tHead.rows[0];
+    if (!head) return;
+    Array.prototype.forEach.call(head.cells, function (th, idx) {
+      if (th.classList.contains("rank")) return;
+      th.classList.add("sortable-th");
+      th.addEventListener("click", function () {
+        var cur = th.classList.contains("sort-desc") ? "desc"
+                : th.classList.contains("sort-asc") ? "asc" : null;
+        var dir = cur === "desc" ? "asc"
+                : cur === "asc" ? "desc"
+                : th.classList.contains("left") ? "asc" : "desc";
+        Array.prototype.forEach.call(head.cells, function (h) {
+          h.classList.remove("sort-asc", "sort-desc");
+        });
+        th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
+        var body = table.tBodies[0];
+        var rows = Array.prototype.slice.call(body.rows).filter(function (r) {
+          return !r.querySelector("td.empty");
+        });
+        rows.sort(function (a, b) {
+          var x = val(a.cells[idx]), y = val(b.cells[idx]), c;
+          if (x.n !== null && y.n !== null) c = x.n - y.n;
+          else c = (x.s || "").localeCompare(y.s || "");
+          return dir === "asc" ? c : -c;
+        });
+        rows.forEach(function (r) { body.appendChild(r); });
+        var rk = 1;
+        rows.forEach(function (r) {
+          var c = r.querySelector("td.rank");
+          if (c) c.textContent = rk++;
+        });
+      });
+    });
+  });
+})();
+</script>"""
 
 
 def esc(s):
@@ -148,21 +196,21 @@ def page_foot(updated):
     )
 
 
-def board_tabs(active_board, season):
+def board_tabs(active_stem, season):
     out = ['<div class="chips">']
-    for key, label in BOARDS.items():
-        cls = "chip active" if key == active_board else "chip"
-        out.append('<a class="%s" href="%s-%s.html">%s</a>' % (cls, key, season, esc(label)))
+    for stem, label in NAV_BOARDS:
+        cls = "chip active" if stem == active_stem else "chip"
+        out.append('<a class="%s" href="%s-%s.html">%s</a>' % (cls, stem, season, esc(label)))
     out.append("</div>")
     return "".join(out)
 
 
-def season_tabs(board, seasons, active_season):
+def season_tabs(stem, seasons, active_season):
     chips = ['<a class="chip%s" href="%s-career.html">Career</a>'
-             % (" active" if active_season == "career" else "", board)]
+             % (" active" if active_season == "career" else "", stem)]
     for s in seasons:
         cls = " active" if s == active_season else ""
-        chips.append('<a class="chip%s" href="%s-%s.html">%s</a>' % (cls, board, s, esc(s)))
+        chips.append('<a class="chip%s" href="%s-%s.html">%s</a>' % (cls, stem, s, esc(s)))
     return '<div class="chips" style="margin:.6rem 0 1rem">' + "".join(chips) + "</div>"
 
 
@@ -242,13 +290,15 @@ def render_player(player, slug, updated):
         parts.append('<tr><td class="left">%s</td><td>%.1f</td><td>%.1f</td>'
                      '<td>%.1f</td><td class="dcol delta %s">%s</td></tr>'
                      % (label, o_off, o_real, o_gar, delta_cls(d), signed(d)))
-    e_off = bucket(car, "efg", 0)
-    e_real = bucket(car, "efg", 1)
-    e_gar = bucket(car, "efg", 2)
-    de = (e_real - e_off) * 100
-    parts.append('<tr><td class="left">eFG%%</td><td>%s</td><td>%s</td><td>%s</td>'
-                 '<td class="dcol delta %s">%s pp</td></tr>'
-                 % (fmt_pct(e_off), fmt_pct(e_real), fmt_pct(e_gar), delta_cls(de), signed(de)))
+    for rkey, rlabel in (("efg", "eFG%"), ("fgpct", "FG%")):
+        r_off = bucket(car, rkey, 0)
+        r_real = bucket(car, rkey, 1)
+        r_gar = bucket(car, rkey, 2)
+        dr = (r_real - r_off) * 100
+        parts.append('<tr><td class="left">%s</td><td>%s</td><td>%s</td><td>%s</td>'
+                     '<td class="dcol delta %s">%s pp</td></tr>'
+                     % (rlabel, fmt_pct(r_off), fmt_pct(r_real), fmt_pct(r_gar),
+                        delta_cls(dr), signed(dr)))
     parts.append("</tbody></table></div></div>")
 
     parts.append('<p style="margin:.2rem 0 1rem"><a class="chip" href="../index.html?player=%s">'
@@ -278,79 +328,53 @@ def leaderboard_rows(players, season):
     return rows
 
 
-def render_leaderboard(board, season, players, slug_of, seasons, updated):
-    rows = leaderboard_rows(players, season)
-    if board == "biggest-droppers":
-        rows.sort(key=lambda r: r["d_ppg"])
-        rows = rows[:TOP_N]
-    else:
-        if board == "star-stat-padders":
-            rows = [r for r in rows if r["off_ppg"] >= STAR_THRESHOLD]
-        rows.sort(key=lambda r: r["gar_pts"], reverse=True)
-        rows = rows[:TOP_N]
+def garbage_stat_rows(players, season, stat):
+    rows = []
+    for p in players:
+        o = stat_obj(p, season)
+        if not o or o["gp"] < MIN_GAMES:
+            continue
+        gp = o["gp"]
+        off = bucket(o, stat, 0)
+        gar = bucket(o, stat, 2)
+        rows.append({
+            "p": p, "gp": gp,
+            "off_pg": pg(off, gp),
+            "gar_pg": pg(gar, gp),
+            "gar_tot": gar,
+            "off_tot": off,
+            "gar_pct": (gar / off * 100) if off else 0.0,
+        })
+    rows.sort(key=lambda r: r["gar_pg"], reverse=True)
+    return rows[:TOP_N]
 
-    if board == "biggest-droppers":
-        cols = [
-            ("GP", False, lambda r: "%d" % r["gp"]),
-            ("Official PPG", False, lambda r: "%.1f" % r["off_ppg"]),
-            ("Real PPG", False, lambda r: "%.1f" % r["real_ppg"]),
-            ("Δ PPG", True, lambda r: ('<span class="delta %s">%s</span>'
-                                       % (delta_cls(r["d_ppg"]), signed(r["d_ppg"])))),
-        ]
-    else:
-        cols = [
-            ("GP", False, lambda r: "%d" % r["gp"]),
-            ("Official PPG", False, lambda r: "%.1f" % r["off_ppg"]),
-            ("Garbage PTS", True, lambda r: fmt_total(r["gar_pts"])),
-            ("Garbage % of pts", False, lambda r: "%.0f%%" % r["gar_share"]),
-        ]
 
-    slabel = season_label(season)
-    btitle = BOARDS[board]
-    title = "NBA Garbage-Time %s — %s | HoopsMatic" % (btitle, slabel)
-
-    if rows:
-        lead = rows[0]["p"]["name"]
-        if board == "biggest-droppers":
-            desc = ("NBA players whose scoring drops most once garbage time is removed, %s. "
-                    "%s leads at %s real-minus-official PPG. Min %d games."
-                    % (slabel, lead, signed(rows[0]["d_ppg"]), MIN_GAMES))
-        elif board == "star-stat-padders":
-            desc = ("NBA stars (%d+ official PPG) padding the most in garbage time, %s. "
-                    "%s tops it with %s garbage points. Min %d games."
-                    % (STAR_THRESHOLD, slabel, lead, fmt_total(rows[0]["gar_pts"]), MIN_GAMES))
-        else:
-            desc = ("NBA stat-padders by total garbage-time points, %s. "
-                    "%s leads with %s garbage points. Min %d games."
-                    % (slabel, lead, fmt_total(rows[0]["gar_pts"]), MIN_GAMES))
-    else:
-        desc = ("NBA garbage-time %s leaderboard, %s. Min %d games."
-                % (btitle.lower(), slabel, MIN_GAMES))
-
-    head = page_head(title, desc, "leaderboards/%s-%s.html" % (board, season))
-    parts = [head]
+def _board_page(nav_stem, file_season, seasons, title, desc, canonical,
+                heading, subtitle, cols, rows, slug_of, updated):
+    parts = [page_head(title, desc, canonical)]
     parts.append('<a class="back" href="../index.html">← HoopsMatic Garbage Time</a>')
-    parts.append('<div class="hdr"><h1>%s · %s</h1><span class="brand">HoopsMatic</span></div>'
-                 % (esc(btitle), esc(slabel)))
+    parts.append('<div class="hdr"><h1>%s</h1><span class="brand">HoopsMatic</span></div>'
+                 % esc(heading))
+    parts.append('<div class="subtitle">%s</div>' % subtitle)
+    parts.append(board_tabs(nav_stem, file_season))
+    parts.append(season_tabs(nav_stem, seasons, file_season))
 
-    note = "Minimum %d games." % MIN_GAMES
-    if board == "star-stat-padders":
-        note = "Minimum %d games · %d+ official PPG." % (MIN_GAMES, STAR_THRESHOLD)
-    parts.append('<div class="subtitle">%s %s</div>' % (esc(BOARD_BLURB[board]), esc(note)))
-
-    parts.append(board_tabs(board, season))
-    parts.append(season_tabs(board, seasons, season))
-
-    th = ['<th class="rank">#</th><th class="left">Player</th>']
-    for header, is_d, _ in cols:
-        th.append('<th class="%s">%s</th>' % ("dcol" if is_d else "", esc(header)))
-    parts.append('<div class="table-wrap"><table class="lb"><thead><tr>'
+    th = ['<th class="rank">#</th>',
+          '<th class="left sortable-th" data-col="player">Player</th>']
+    for header, is_d, _fn, dflt in cols:
+        cls = ["dcol"] if is_d else []
+        cls.append("sortable-th")
+        if dflt == "asc":
+            cls.append("sort-asc")
+        elif dflt == "desc":
+            cls.append("sort-desc")
+        th.append('<th class="%s">%s</th>' % (" ".join(cls), esc(header)))
+    parts.append('<div class="table-wrap"><table class="lb sortable"><thead><tr>'
                  + "".join(th) + "</tr></thead><tbody>")
 
-    ncols = len(cols) + 2
     if not rows:
         parts.append('<tr><td colspan="%d" class="empty">No players meet the filters '
-                     'for %s.</td></tr>' % (ncols, esc(slabel)))
+                     'for %s.</td></tr>' % (len(cols) + 2, esc(season_label(file_season))))
     else:
         for i, r in enumerate(rows, 1):
             p = r["p"]
@@ -360,11 +384,92 @@ def render_leaderboard(board, season, players, slug_of, seasons, updated):
                         '<a href="../p/%s.html">%s</a></span></td>'
                         % (headshot(p["id"]), pslug, esc(p["name"])))
             cells = "".join('<td class="%s">%s</td>' % ("dcol" if is_d else "", fn(r))
-                            for _, is_d, fn in cols)
+                            for _h, is_d, fn, _d in cols)
             parts.append('<tr><td class="rank">%d</td>%s%s</tr>' % (i, namecell, cells))
     parts.append("</tbody></table></div>")
+    parts.append(SORT_SCRIPT)
     parts.append(page_foot(updated))
     return "\n".join(parts)
+
+
+def render_scoring_board(board, season, players, slug_of, seasons, updated):
+    rows = leaderboard_rows(players, season)
+    slabel = season_label(season)
+    btitle = SCORING_TITLE[board]
+
+    if board == "biggest-droppers":
+        rows.sort(key=lambda r: r["d_ppg"])
+        rows = rows[:TOP_N]
+        cols = [
+            ("GP", False, lambda r: "%d" % r["gp"], None),
+            ("Official PPG", False, lambda r: "%.1f" % r["off_ppg"], None),
+            ("Real PPG", False, lambda r: "%.1f" % r["real_ppg"], None),
+            ("Δ PPG", True, lambda r: ('<span class="delta %s">%s</span>'
+                                       % (delta_cls(r["d_ppg"]), signed(r["d_ppg"]))), "asc"),
+        ]
+        note = "Minimum %d games." % MIN_GAMES
+        if rows:
+            desc = ("NBA players whose scoring drops most once garbage time is removed, %s. "
+                    "%s leads at %s real-minus-official PPG. Min %d games."
+                    % (slabel, rows[0]["p"]["name"], signed(rows[0]["d_ppg"]), MIN_GAMES))
+        else:
+            desc = "NBA garbage-time biggest droppers leaderboard, %s. Min %d games." % (slabel, MIN_GAMES)
+    else:
+        rows = [r for r in rows if r["off_ppg"] >= STAR_THRESHOLD]
+        rows.sort(key=lambda r: r["gar_pts"], reverse=True)
+        rows = rows[:TOP_N]
+        cols = [
+            ("GP", False, lambda r: "%d" % r["gp"], None),
+            ("Official PPG", False, lambda r: "%.1f" % r["off_ppg"], None),
+            ("Garbage PTS", True, lambda r: fmt_total(r["gar_pts"]), "desc"),
+            ("Garbage % of pts", False, lambda r: "%.0f%%" % r["gar_share"], None),
+        ]
+        note = "Minimum %d games · %d+ official PPG." % (MIN_GAMES, STAR_THRESHOLD)
+        if rows:
+            desc = ("NBA stars (%d+ official PPG) padding the most in garbage time, %s. "
+                    "%s tops it with %s garbage points. Min %d games."
+                    % (STAR_THRESHOLD, slabel, rows[0]["p"]["name"], fmt_total(rows[0]["gar_pts"]), MIN_GAMES))
+        else:
+            desc = "NBA garbage-time star stat-padders leaderboard, %s. Min %d games." % (slabel, MIN_GAMES)
+
+    title = "NBA Garbage-Time %s — %s | HoopsMatic" % (btitle, slabel)
+    subtitle = "%s %s" % (esc(SCORING_BLURB[board]), esc(note))
+    return _board_page(board, season, seasons, title, desc,
+                       "leaderboards/%s-%s.html" % (board, season),
+                       "%s · %s" % (btitle, slabel), subtitle, cols, rows, slug_of, updated)
+
+
+def render_garbage_board(stat, label, name, full, season, players, slug_of, seasons, updated,
+                         stem=None, canonical_stem=None, display=None):
+    stem = stem or ("garbage-%s" % stat)
+    canonical_stem = canonical_stem or stem
+    disp = display or ("Garbage-Time %s" % name)
+    rows = garbage_stat_rows(players, season, stat)
+    slabel = season_label(season)
+
+    cols = [
+        ("GP", False, lambda r: "%d" % r["gp"], None),
+        ("Official %s /g" % label, False, lambda r: "%.1f" % r["off_pg"], None),
+        ("Garbage %s /g" % label, True, lambda r: "%.2f" % r["gar_pg"], "desc"),
+        ("Garbage %s" % label, False, lambda r: fmt_total(r["gar_tot"]), None),
+        ("Garbage %% of %s" % label, False, lambda r: "%.2f%%" % r["gar_pct"], None),
+    ]
+
+    title = "NBA %s — %s | HoopsMatic" % (disp, slabel)
+    if rows:
+        lead = rows[0]["p"]["name"]
+        desc = ("NBA players ranked by garbage-time %s per game, %s. %s leads at %.2f garbage "
+                "%s per game (%s total). Min %d games."
+                % (full, slabel, lead, rows[0]["gar_pg"], full, fmt_total(rows[0]["gar_tot"]), MIN_GAMES))
+    else:
+        desc = "NBA garbage-time %s leaderboard, %s. Min %d games." % (full, slabel, MIN_GAMES)
+
+    blurb = ("Players ranked by their garbage-time %s — production accrued once the game "
+             "was already decided." % full)
+    subtitle = "%s %s" % (esc(blurb), esc("Minimum %d games." % MIN_GAMES))
+    return _board_page(canonical_stem, season, seasons, title, desc,
+                       "leaderboards/%s-%s.html" % (canonical_stem, season),
+                       "%s · %s" % (disp, slabel), subtitle, cols, rows, slug_of, updated)
 
 
 def render_players_index(players, slug_of, updated):
@@ -403,20 +508,27 @@ def render_players_index(players, slug_of, updated):
 
 def render_leaderboards_index(seasons, updated):
     title = "NBA Garbage-Time Leaderboards | HoopsMatic"
-    desc = ("Garbage-time leaderboards: biggest NBA stat-padders, biggest droppers, and "
-            "star stat-padders — career and every season from 2016-17 to 2025-26.")
-    head = page_head(title, desc, "leaderboards/index.html")
-    parts = [head]
+    desc = ("Garbage-time leaderboards: points, rebounds, assists, steals and blocks leaders, "
+            "plus biggest droppers and star stat-padders — career and every season from "
+            "2016-17 to 2025-26.")
+    parts = [page_head(title, desc, "leaderboards/index.html")]
     parts.append('<a class="back" href="../index.html">← HoopsMatic Garbage Time</a>')
     parts.append('<div class="hdr"><h1>Leaderboards</h1><span class="brand">HoopsMatic</span></div>')
     parts.append('<div class="subtitle">Career and per-season boards. Minimum %d games.</div>' % MIN_GAMES)
-    for board, label in BOARDS.items():
+
+    sections = [("garbage-%s" % s, "Garbage-Time %s" % name,
+                 "Players ranked by their garbage-time %s, per game." % full)
+                for s, _lab, name, full in GARBAGE_STATS]
+    sections.append(("biggest-droppers", "Biggest Droppers", SCORING_BLURB["biggest-droppers"]))
+    sections.append(("star-stat-padders", "Star Stat-Padders", SCORING_BLURB["star-stat-padders"]))
+
+    for stem, heading, blurb in sections:
         parts.append('<div class="section">')
-        parts.append('<div class="section-head"><h2>%s</h2></div>' % esc(label))
-        parts.append('<div class="hint">%s</div>' % esc(BOARD_BLURB[board]))
-        chips = ['<a class="chip" href="%s-career.html">Career</a>' % board]
+        parts.append('<div class="section-head"><h2>%s</h2></div>' % esc(heading))
+        parts.append('<div class="hint">%s</div>' % esc(blurb))
+        chips = ['<a class="chip" href="%s-career.html">Career</a>' % stem]
         for s in seasons:
-            chips.append('<a class="chip" href="%s-%s.html">%s</a>' % (board, s, esc(s)))
+            chips.append('<a class="chip" href="%s-%s.html">%s</a>' % (stem, s, esc(s)))
         parts.append('<div class="chips">' + "".join(chips) + "</div>")
         parts.append("</div>")
     parts.append(page_foot(updated))
@@ -470,18 +582,40 @@ def main():
     write("p/index.html", render_players_index(players, slug_of, updated))
 
     season_keys = ["career"] + seasons
-    for board in BOARDS:
+    lb_pages = 0
+
+    for stat, label, name, full in GARBAGE_STATS:
+        for season in season_keys:
+            write("leaderboards/garbage-%s-%s.html" % (stat, season),
+                  render_garbage_board(stat, label, name, full, season,
+                                       players, slug_of, seasons, updated))
+            urls.append("%s/leaderboards/garbage-%s-%s.html" % (BASE_URL, stat, season))
+            lb_pages += 1
+
+    for board in ("biggest-droppers", "star-stat-padders"):
         for season in season_keys:
             write("leaderboards/%s-%s.html" % (board, season),
-                  render_leaderboard(board, season, players, slug_of, seasons, updated))
+                  render_scoring_board(board, season, players, slug_of, seasons, updated))
             urls.append("%s/leaderboards/%s-%s.html" % (BASE_URL, board, season))
+            lb_pages += 1
+
+    alias_pages = 0
+    for season in season_keys:
+        write("leaderboards/stat-padders-%s.html" % season,
+              render_garbage_board("pts", "PTS", "Points", "points", season,
+                                   players, slug_of, seasons, updated,
+                                   stem="stat-padders", canonical_stem="garbage-pts",
+                                   display="Garbage-Time Leaders"))
+        alias_pages += 1
+
     write("leaderboards/index.html", render_leaderboards_index(seasons, updated))
 
     write_sitemap(urls, lastmod)
     write_robots()
 
-    print("Generated %d player pages, %d leaderboard pages, sitemap (%d urls), robots.txt"
-          % (len(players), len(BOARDS) * len(season_keys), len(urls)))
+    print("Generated %d player pages, %d leaderboard pages (+%d stat-padders aliases), "
+          "sitemap (%d urls), robots.txt"
+          % (len(players), lb_pages, alias_pages, len(urls)))
 
 
 if __name__ == "__main__":

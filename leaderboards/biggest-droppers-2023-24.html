@@ -21,9 +21,9 @@
 <a class="back" href="../index.html">← HoopsMatic Garbage Time</a>
 <div class="hdr"><h1>Biggest Droppers · 2023-24</h1><span class="brand">HoopsMatic</span></div>
 <div class="subtitle">Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG). Minimum 30 games.</div>
-<div class="chips"><a class="chip" href="stat-padders-2023-24.html">Stat-Padders</a><a class="chip active" href="biggest-droppers-2023-24.html">Biggest Droppers</a><a class="chip" href="star-stat-padders-2023-24.html">Star Stat-Padders</a></div>
+<div class="chips"><a class="chip" href="garbage-pts-2023-24.html">Garbage PTS</a><a class="chip" href="garbage-reb-2023-24.html">Garbage REB</a><a class="chip" href="garbage-ast-2023-24.html">Garbage AST</a><a class="chip" href="garbage-stl-2023-24.html">Garbage STL</a><a class="chip" href="garbage-blk-2023-24.html">Garbage BLK</a><a class="chip active" href="biggest-droppers-2023-24.html">Biggest Droppers</a><a class="chip" href="star-stat-padders-2023-24.html">Star Stat-Padders</a></div>
 <div class="chips" style="margin:.6rem 0 1rem"><a class="chip" href="biggest-droppers-career.html">Career</a><a class="chip" href="biggest-droppers-2025-26.html">2025-26</a><a class="chip" href="biggest-droppers-2024-25.html">2024-25</a><a class="chip active" href="biggest-droppers-2023-24.html">2023-24</a><a class="chip" href="biggest-droppers-2022-23.html">2022-23</a><a class="chip" href="biggest-droppers-2021-22.html">2021-22</a><a class="chip" href="biggest-droppers-2020-21.html">2020-21</a><a class="chip" href="biggest-droppers-2019-20.html">2019-20</a><a class="chip" href="biggest-droppers-2018-19.html">2018-19</a><a class="chip" href="biggest-droppers-2017-18.html">2017-18</a><a class="chip" href="biggest-droppers-2016-17.html">2016-17</a></div>
-<div class="table-wrap"><table class="lb"><thead><tr><th class="rank">#</th><th class="left">Player</th><th class="">GP</th><th class="">Official PPG</th><th class="">Real PPG</th><th class="dcol">Δ PPG</th></tr></thead><tbody>
+<div class="table-wrap"><table class="lb sortable"><thead><tr><th class="rank">#</th><th class="left sortable-th" data-col="player">Player</th><th class="sortable-th">GP</th><th class="sortable-th">Official PPG</th><th class="sortable-th">Real PPG</th><th class="dcol sortable-th sort-asc">Δ PPG</th></tr></thead><tbody>
 <tr><td class="rank">1</td><td class="left"><span class="pcell"><img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630322.png" alt="" onerror="this.onerror=null;this.style.visibility='hidden'"><a href="../p/lindy-waters-iii.html">Lindy Waters III</a></span></td><td class="">33</td><td class="">4.2</td><td class="">1.6</td><td class="dcol"><span class="delta neg">-2.6</span></td></tr>
 <tr><td class="rank">2</td><td class="left"><span class="pcell"><img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630527.png" alt="" onerror="this.onerror=null;this.style.visibility='hidden'"><a href="../p/brandon-boston-jr.html">Brandon Boston Jr.</a></span></td><td class="">31</td><td class="">5.5</td><td class="">3.0</td><td class="dcol"><span class="delta neg">-2.5</span></td></tr>
 <tr><td class="rank">3</td><td class="left"><span class="pcell"><img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629670.png" alt="" onerror="this.onerror=null;this.style.visibility='hidden'"><a href="../p/jordan-nwora.html">Jordan Nwora</a></span></td><td class="">48</td><td class="">7.6</td><td class="">5.2</td><td class="dcol"><span class="delta neg">-2.4</span></td></tr>
@@ -125,6 +125,53 @@
 <tr><td class="rank">99</td><td class="left"><span class="pcell"><img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630192.png" alt="" onerror="this.onerror=null;this.style.visibility='hidden'"><a href="../p/zeke-nnaji.html">Zeke Nnaji</a></span></td><td class="">59</td><td class="">3.2</td><td class="">2.4</td><td class="dcol"><span class="delta neg">-0.8</span></td></tr>
 <tr><td class="rank">100</td><td class="left"><span class="pcell"><img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629002.png" alt="" onerror="this.onerror=null;this.style.visibility='hidden'"><a href="../p/chimezie-metu.html">Chimezie Metu</a></span></td><td class="">49</td><td class="">6.8</td><td class="">6.0</td><td class="dcol"><span class="delta neg">-0.8</span></td></tr>
 </tbody></table></div>
+<script>
+(function () {
+  function val(td) {
+    var raw = td.getAttribute("data-sort");
+    if (raw === null) raw = td.textContent;
+    raw = raw.trim();
+    var num = raw.replace(/,/g, "").replace(/\s*pp$/, "").replace(/[%+]/g, "").trim();
+    if (num !== "" && /^[-+]?[0-9]*\.?[0-9]+$/.test(num)) return { n: parseFloat(num), s: null };
+    return { n: null, s: raw.toLowerCase() };
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("table.lb.sortable"), function (table) {
+    var head = table.tHead && table.tHead.rows[0];
+    if (!head) return;
+    Array.prototype.forEach.call(head.cells, function (th, idx) {
+      if (th.classList.contains("rank")) return;
+      th.classList.add("sortable-th");
+      th.addEventListener("click", function () {
+        var cur = th.classList.contains("sort-desc") ? "desc"
+                : th.classList.contains("sort-asc") ? "asc" : null;
+        var dir = cur === "desc" ? "asc"
+                : cur === "asc" ? "desc"
+                : th.classList.contains("left") ? "asc" : "desc";
+        Array.prototype.forEach.call(head.cells, function (h) {
+          h.classList.remove("sort-asc", "sort-desc");
+        });
+        th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
+        var body = table.tBodies[0];
+        var rows = Array.prototype.slice.call(body.rows).filter(function (r) {
+          return !r.querySelector("td.empty");
+        });
+        rows.sort(function (a, b) {
+          var x = val(a.cells[idx]), y = val(b.cells[idx]), c;
+          if (x.n !== null && y.n !== null) c = x.n - y.n;
+          else c = (x.s || "").localeCompare(y.s || "");
+          return dir === "asc" ? c : -c;
+        });
+        rows.forEach(function (r) { body.appendChild(r); });
+        var rk = 1;
+        rows.forEach(function (r) {
+          var c = r.querySelector("td.rank");
+          if (c) c.textContent = rk++;
+        });
+      });
+    });
+  });
+})();
+</script>
 <div class="foot">HoopsMatic · Garbage-time splits derived from play-by-play. "Real" numbers exclude garbage-time stretches; "official" match the box score. · updated 2026-06-12</div>
 </div>
 </body>

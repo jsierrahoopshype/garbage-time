@@ -1,8 +1,6 @@
 /* ==========================================================================
    HoopsMatic — NBA Garbage Time. Shared stylesheet.
-   Design tokens (DM Sans + JetBrains Mono, light surface palette, table.lb
-   pattern, sticky filter bar, chips, segmented toggles, stat cards) lifted
-   from the HoopsHype NBA Polymarket tracker.
+   Design tokens lifted from the HoopsHype NBA Polymarket tracker.
    ========================================================================== */
 :root{
   --bg:#f5f5f7;--surface:#fff;--surface-hover:#f0f0f2;--border:#d1d1d6;
@@ -61,6 +59,19 @@ input[type=number]{width:5rem}
   cursor:pointer;transition:.12s;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;text-decoration:none}
 .chip:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
 .chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.tilegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:.6rem}
+.tile{display:flex;flex-direction:column;gap:.2rem;padding:.8rem .9rem;border:1px solid var(--border);
+  border-radius:12px;background:var(--surface);color:var(--text);text-decoration:none;cursor:pointer;transition:.12s}
+.tile:hover{border-color:var(--accent);text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.tile.active{border-color:var(--accent);background:var(--accent-dim)}
+.tile .ab{font-family:'JetBrains Mono',monospace;font-size:1.15rem;font-weight:700;letter-spacing:-.02em;color:var(--accent)}
+.tile .tl{font-size:.84rem;font-weight:600}
+.tile .ts{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.05em}
+table.lb.sortable thead th.sortable-th{cursor:pointer;-webkit-user-select:none;user-select:none}
+table.lb.sortable thead th.sortable-th:hover{color:var(--accent)}
+table.lb thead th.sort-asc::after{content:"▲";font-size:.6em;margin-left:.35em;vertical-align:middle}
+table.lb thead th.sort-desc::after{content:"▼";font-size:.6em;margin-left:.35em;vertical-align:middle}
 .search-wrap{position:relative;flex:1 1 18rem;min-width:14rem}
 .search-wrap input{width:100%}
 .typeahead{position:absolute;top:100%;left:0;right:0;margin-top:.25rem;background:var(--surface);

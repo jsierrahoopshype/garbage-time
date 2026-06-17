@@ -1475,17 +1475,61 @@
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/p/ben-moore.html</loc><lastmod>2026-06-12</lastmod></url>
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/p/patricio-garino.html</loc><lastmod>2026-06-12</lastmod></url>
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/p/ben-bentil.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-career.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
-  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/stat-padders-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-career.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-pts-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-career.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-reb-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-career.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-ast-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-career.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-stl-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-career.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2023-24.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2022-23.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2021-22.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2020-21.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2019-20.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2018-19.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2017-18.html</loc><lastmod>2026-06-12</lastmod></url>
+  <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/garbage-blk-2016-17.html</loc><lastmod>2026-06-12</lastmod></url>
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/biggest-droppers-career.html</loc><lastmod>2026-06-12</lastmod></url>
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/biggest-droppers-2025-26.html</loc><lastmod>2026-06-12</lastmod></url>
   <url><loc>https://jsierrahoopshype.github.io/garbage-time/leaderboards/biggest-droppers-2024-25.html</loc><lastmod>2026-06-12</lastmod></url>
