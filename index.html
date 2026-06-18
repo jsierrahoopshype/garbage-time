@@ -143,8 +143,6 @@ const STAT_LABEL = {};
 COUNT_STATS.concat(RATE_STATS).forEach(s => STAT_LABEL[s.key] = s.label);
 const RATE_KEYS = new Set(RATE_STATS.map(s => s.key));
 
-// Per-stat garbage boards. Keys double as the pre-rendered file stems
-// (kept in sync with build_pages.py); PTS lives at garbage-pts.
 const PER_STAT = {
   "garbage-pts": { stat: "pts", label: "PTS", name: "Garbage-Time Points", full: "points" },
   "garbage-reb": { stat: "reb", label: "REB", name: "Garbage-Time Rebounds", full: "rebounds" },
@@ -152,7 +150,6 @@ const PER_STAT = {
   "garbage-stl": { stat: "stl", label: "STL", name: "Garbage-Time Steals", full: "steals" },
   "garbage-blk": { stat: "blk", label: "BLK", name: "Garbage-Time Blocks", full: "blocks" },
 };
-// Tiles are the primary leaderboard navigation on the home page.
 const TILES = [
   { lb: "garbage-pts", ab: "PTS", name: "Points" },
   { lb: "garbage-reb", ab: "REB", name: "Rebounds" },
@@ -160,32 +157,30 @@ const TILES = [
   { lb: "garbage-stl", ab: "STL", name: "Steals" },
   { lb: "garbage-blk", ab: "BLK", name: "Blocks" },
   { lb: "droppers", ab: "Δ", name: "Biggest Droppers" },
-  { lb: "stars", ab: "★", name: "Star Stat-Padders" },
+  { lb: "stars", ab: "★", name: "Stars in Garbage Time" },
 ];
-// board key -> pre-rendered filename stem
 function boardStem(lb) {
   if (lb === "droppers") return "biggest-droppers";
   if (lb === "stars") return "star-stat-padders";
-  return lb; // garbage-<stat>
+  return lb;
 }
 
 const state = {
   data: null,
   season: "career",
-  mode: "pg",        // "pg" | "total"
+  mode: "pg",
   minGames: 30,
-  lb: "garbage-pts", // garbage-pts|reb|ast|stl|blk | droppers | stars
+  lb: "garbage-pts",
   threshold: 20,
   drillStat: "pts",
   player: null,
   taIndex: -1,
   taMatches: [],
   dupSlugs: new Set(),
-  sortKey: null,     // active leaderboard sort column id (null = board default)
+  sortKey: null,
   sortDir: "desc",
 };
 
-// ---- helpers ----
 function statObj(player, season) {
   return season === "career" ? player.career : (player.seasons[season] || null);
 }
@@ -199,12 +194,18 @@ function fmtCount(total, gp) {
   if (state.mode === "pg") return gp > 0 ? (total / gp).toFixed(1) : "0.0";
   return Math.round(total).toLocaleString();
 }
-function fmtRate(v) { return (v * 100).toFixed(1) + "%"; }
+function fmtRate(v) { return (v * 100).toFixed(2) + "%"; }
 function fmtTotal(n) { return Math.round(n).toLocaleString(); }
 function signed(n, digits) { return (n > 0 ? "+" : "") + n.toFixed(digits); }
 
-// Collision-safe player slug -> path. Must match build_pages.py: duplicate slugs
-// across the dataset are disambiguated with the player id.
+const GARBAGE_PCT_MAX = 35;
+function garbagePctColor(pct) {
+  let t = pct / GARBAGE_PCT_MAX;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  const hue = Math.round(120 * (1 - t));
+  return `hsl(${hue}, 80%, 85%)`;
+}
+
 function playerSlug(p) { return state.dupSlugs.has(p.slug) ? p.slug + "-" + p.id : p.slug; }
 function playerPath(p) { return "p/" + playerSlug(p) + ".html"; }
 function lbPagePath() {
@@ -212,9 +213,6 @@ function lbPagePath() {
   return "leaderboards/" + boardStem(state.lb) + "-" + seas + ".html";
 }
 
-// =====================================================================
-// INIT
-// =====================================================================
 fetch("data/garbage_time_for_web.json")
   .then(r => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
   .then(init)
@@ -225,8 +223,6 @@ fetch("data/garbage_time_for_web.json")
   });
 
 function init(data) {
-  // The feed includes non-player aggregate rows (blank name/slug, zeroed box
-  // score). Drop them so they never reach search, leaderboards or links.
   data.players = (data.players || []).filter(p => p.name && p.name.trim());
   state.data = data;
   document.getElementById("loading").style.display = "none";
@@ -245,7 +241,6 @@ function init(data) {
   sel.innerHTML = '<option value="career">Career (all seasons)</option>' +
     seasons.map(s => `<option value="${s}">${s}</option>`).join("");
 
-  // duplicate-slug detection (kept identical to the generator)
   const counts = {};
   data.players.forEach(p => { counts[p.slug] = (counts[p.slug] || 0) + 1; });
   state.dupSlugs = new Set(Object.keys(counts).filter(s => counts[s] > 1));
@@ -257,7 +252,6 @@ function init(data) {
   buildTiles();
   renderLeaderboard();
 
-  // deep link: ?player=<slug> opens that player's drilldown
   const want = new URLSearchParams(location.search).get("player");
   if (want) {
     const p = data.players.find(x => playerSlug(x) === want || x.slug === want);
@@ -265,9 +259,6 @@ function init(data) {
   }
 }
 
-// =====================================================================
-// CONTROLS
-// =====================================================================
 function wireControls() {
   document.getElementById("season").addEventListener("change", e => {
     state.season = e.target.value;
@@ -300,8 +291,6 @@ function setActive(sel, el) {
 }
 function renderAll() { renderLeaderboard(); if (state.player) renderPlayer(); }
 
-// Intercept left-clicks on player links to open the in-page drilldown, while
-// leaving the real href intact for crawlers, new-tab and modified clicks.
 function wirePlayerLink(el, id) {
   el.addEventListener("click", e => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -310,9 +299,6 @@ function wirePlayerLink(el, id) {
   });
 }
 
-// =====================================================================
-// SEARCH / TYPE-AHEAD
-// =====================================================================
 function setupSearch() {
   const input = document.getElementById("search");
   const box = document.getElementById("typeahead");
@@ -360,9 +346,6 @@ function paintTa() {
 }
 function closeTa() { document.getElementById("typeahead").classList.remove("open"); state.taIndex = -1; }
 
-// =====================================================================
-// PLAYER DRILLDOWN
-// =====================================================================
 function buildStatPicker() {
   const wrap = document.getElementById("statPicker");
   wrap.innerHTML = COUNT_STATS.concat(RATE_STATS).map(s =>
@@ -414,7 +397,8 @@ function renderPlayer() {
     `<th>Official ${label}${unit}</th>` +
     `<th>Real ${label}${unit}</th>` +
     `<th>Garbage ${label}${unit}</th>` +
-    `<th class="dcol">Δ (real − official)</th>` +
+    `<th class="dcol">Garbage %</th>` +
+    `<th>Δ (real − official)</th>` +
     "</tr></thead><tbody>";
 
   function row(seasonName, o, isCareer) {
@@ -422,22 +406,26 @@ function renderPlayer() {
     const off = bucketValue(o, statKey, 0);
     const real = bucketValue(o, statKey, 1);
     const gar = bucketValue(o, statKey, 2);
-    let offS, realS, garS, delta, deltaS;
+    let offS, realS, garS, delta, deltaS, gpctCell;
     if (isRate) {
       offS = fmtRate(off); realS = fmtRate(real); garS = fmtRate(gar);
       delta = (real - off) * 100;
       deltaS = signed(delta, 1) + " pp";
+      gpctCell = `<td class="muted">—</td>`;
     } else {
       offS = fmtCount(off, o.gp); realS = fmtCount(real, o.gp); garS = fmtCount(gar, o.gp);
       delta = state.mode === "pg" ? (o.gp > 0 ? (real - off) / o.gp : 0) : (real - off);
       deltaS = state.mode === "pg" ? signed(delta, 1) : signed(delta, 0);
+      const share = off > 0 ? gar / off * 100 : 0;
+      gpctCell = `<td class="gpct" style="background:${garbagePctColor(share)}">${share.toFixed(2)}%</td>`;
     }
     const cls = delta < -0.0001 ? "neg" : (delta > 0.0001 ? "pos" : "flat");
     return `<tr class="${isCareer ? "career-row" : ""}">` +
       `<td class="left">${isCareer ? "Career" : seasonName}</td>` +
       `<td>${o.gp}</td>` +
       `<td>${offS}</td><td>${realS}</td><td>${garS}</td>` +
-      `<td class="dcol delta ${cls}">${deltaS}</td></tr>`;
+      gpctCell +
+      `<td class="delta deemph ${cls}">${deltaS}</td></tr>`;
   }
 
   for (const s of seasonKeys) html += row(s, p.seasons[s], false);
@@ -446,12 +434,8 @@ function renderPlayer() {
   document.getElementById("pTable").innerHTML = html;
 }
 
-// =====================================================================
-// LEADERBOARDS
-// =====================================================================
 function qualifies(o) { return o && o.gp >= state.minGames; }
 
-// Build the tiles that act as the primary leaderboard navigation.
 function buildTiles() {
   const wrap = document.getElementById("lbTiles");
   wrap.innerHTML = TILES.map(t =>
@@ -470,14 +454,13 @@ function buildTiles() {
 }
 function selectBoard(lb) {
   state.lb = lb;
-  state.sortKey = null;            // fall back to this board's default sort
+  state.sortKey = null;
   document.querySelectorAll("#lbTiles .tile").forEach(t =>
     t.classList.toggle("active", t.dataset.lb === lb));
   document.getElementById("starToggle").style.display = lb === "stars" ? "" : "none";
   renderLeaderboard();
 }
 
-// Per-board spec: title, blurb, row compute, columns, default sort, filter.
 function leaderboardSpec(lb) {
   if (lb === "droppers") {
     return {
@@ -486,20 +469,23 @@ function leaderboardSpec(lb) {
       compute: r => { const o = r.o, gp = o.gp;
         r.offPpg = gp > 0 ? o.pts[0] / gp : 0;
         r.realPpg = gp > 0 ? o.pts[1] / gp : 0;
-        r.deltaPpg = r.realPpg - r.offPpg; },
+        r.deltaPpg = r.realPpg - r.offPpg;
+        r.garShare = o.pts[0] > 0 ? o.pts[2] / o.pts[0] * 100 : 0; },
       cols: [
         { id: "gp", label: "GP", get: r => r.o.gp, fmt: r => r.o.gp },
         { id: "off", label: "Official PPG", get: r => r.offPpg, fmt: r => r.offPpg.toFixed(1) },
         { id: "real", label: "Real PPG", get: r => r.realPpg, fmt: r => r.realPpg.toFixed(1) },
         { id: "d", label: "Δ PPG", delta: true, get: r => r.deltaPpg, fmt: r => signed(r.deltaPpg, 1),
           cls: r => r.deltaPpg < 0 ? "neg" : (r.deltaPpg > 0 ? "pos" : "flat") },
+        { id: "share", label: "Garbage % of pts", get: r => r.garShare,
+          fmt: r => r.garShare.toFixed(2) + "%", bg: r => garbagePctColor(r.garShare) },
       ],
       defaultSort: { id: "d", dir: "asc" },
     };
   }
   if (lb === "stars") {
     return {
-      title: "Star Stat-Padders",
+      title: "Stars in Garbage Time",
       desc: "Real rotation stars (by official scoring) who still pad the most in garbage time.",
       compute: r => { const o = r.o, gp = o.gp;
         r.offPpg = gp > 0 ? o.pts[0] / gp : 0;
@@ -511,13 +497,13 @@ function leaderboardSpec(lb) {
         { id: "gar", label: state.mode === "pg" ? "Garbage PTS /g" : "Garbage PTS", delta: true,
           get: r => r.garPts,
           fmt: r => state.mode === "pg" ? (r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(2) : "0.00") : fmtTotal(r.garPts) },
-        { id: "share", label: "Garbage % of pts", get: r => r.garShare, fmt: r => r.garShare.toFixed(0) + "%" },
+        { id: "share", label: "Garbage % of pts", get: r => r.garShare,
+          fmt: r => r.garShare.toFixed(2) + "%", bg: r => garbagePctColor(r.garShare) },
       ],
       defaultSort: { id: "gar", dir: "desc" },
       filter: r => r.offPpg >= state.threshold,
     };
   }
-  // per-stat garbage board
   const meta = PER_STAT[lb], k = meta.stat, L = meta.label;
   return {
     title: meta.name,
@@ -533,7 +519,8 @@ function leaderboardSpec(lb) {
       { id: "offpg", label: "Official " + L + " /g", get: r => r.offPg, fmt: r => r.offPg.toFixed(1) },
       { id: "garpg", label: "Garbage " + L + " /g", delta: true, get: r => r.garPg, fmt: r => r.garPg.toFixed(2) },
       { id: "gartot", label: "Garbage " + L, get: r => r.garTot, fmt: r => fmtTotal(r.garTot) },
-      { id: "pct", label: "Garbage % of " + L, get: r => r.garPct, fmt: r => r.garPct.toFixed(2) + "%" },
+      { id: "pct", label: "Garbage % of " + L, get: r => r.garPct,
+        fmt: r => r.garPct.toFixed(2) + "%", bg: r => garbagePctColor(r.garPct) },
     ],
     defaultSort: { id: "garpg", dir: "desc" },
   };
@@ -554,7 +541,6 @@ function renderLeaderboard() {
   rows.forEach(spec.compute);
   if (spec.filter) rows = rows.filter(spec.filter);
 
-  // resolve active sort (fall back to the board default)
   let sortId = state.sortKey, dir = state.sortDir;
   if (!sortId || !(sortId === "player" || spec.cols.some(c => c.id === sortId))) {
     sortId = spec.defaultSort.id; dir = spec.defaultSort.dir;
@@ -588,7 +574,13 @@ function renderLeaderboard() {
         `<a href="${playerPath(r.p)}" data-id="${r.p.id}">${escapeHtml(r.p.name)}</a></span></td>` +
         spec.cols.map(c => {
           const extra = c.cls ? " " + c.cls(r) : "";
-          return `<td class="${c.delta ? "dcol delta" + extra : ""}">${c.fmt(r)}</td>`;
+          let cls = c.delta ? "dcol delta" + extra : "";
+          let style = "";
+          if (c.bg) {
+            const color = c.bg(r);
+            if (color) { style = ` style="background:${color}"`; cls = (cls + " gpct").trim(); }
+          }
+          return `<td class="${cls}"${style}>${c.fmt(r)}</td>`;
         }).join("") + "</tr>";
     });
   }
@@ -607,7 +599,6 @@ function renderLeaderboard() {
   });
 }
 
-// ---- util ----
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
