@@ -94,14 +94,6 @@
       <h2 id="lbTitle">Garbage-Time Points</h2>
       <a class="more" id="lbFull" href="#">View full leaderboard page →</a>
     </div>
-    <div class="field" id="starToggle" style="display:none;margin-bottom:.7rem">
-      <label>Star threshold (official PPG)</label>
-      <div class="toggle" id="thrToggle">
-        <button data-thr="15">15+</button>
-        <button data-thr="20" class="active">20+</button>
-        <button data-thr="25">25+</button>
-      </div>
-    </div>
     <div class="hint" id="lbDesc" style="margin-bottom:.7rem;color:var(--text-secondary);font-size:.8rem"></div>
     <div class="table-wrap">
       <table class="lb sortable" id="lbTable"></table>
@@ -125,7 +117,6 @@ const FALLBACK_SHOT =
 function headshot(id) { return "https://cdn.nba.com/headshots/nba/latest/260x190/" + id + ".png"; }
 function onShotErr(img) { if (img.src !== FALLBACK_SHOT) { img.onerror = null; img.src = FALLBACK_SHOT; } }
 
-// ---- stat metadata ----
 const COUNT_STATS = [
   { key: "pts", label: "PTS" },
   { key: "reb", label: "REB" },
@@ -165,13 +156,42 @@ function boardStem(lb) {
   return lb;
 }
 
+const ALLSTAR_NAMES = [
+  "Stephen Curry", "James Harden", "Russell Westbrook", "Chris Paul", "Damian Lillard",
+  "Klay Thompson", "DeMar DeRozan", "Kyrie Irving", "John Wall", "Isaiah Thomas",
+  "Bradley Beal", "Victor Oladipo", "Kemba Walker", "Devin Booker", "Donovan Mitchell",
+  "Luka Dončić", "Trae Young", "Shai Gilgeous-Alexander", "Jaylen Brown", "Zach LaVine",
+  "Ja Morant", "Jalen Brunson", "Tyrese Maxey", "Tyrese Haliburton", "Anthony Edwards",
+  "De'Aaron Fox", "Darius Garland", "Dejounte Murray", "Fred VanVleet", "Cade Cunningham",
+  "Tyler Herro", "Goran Dragić", "D'Angelo Russell", "Jarrett Allen", "Mike Conley",
+  "LeBron James", "Kevin Durant", "Giannis Antetokounmpo", "Kawhi Leonard", "Anthony Davis",
+  "Paul George", "Jimmy Butler", "Draymond Green", "Kristaps Porziņģis", "Gordon Hayward",
+  "Paul Millsap", "Kevin Love", "Carmelo Anthony", "Blake Griffin", "DeMarcus Cousins",
+  "Karl-Anthony Towns", "Joel Embiid", "Nikola Jokić", "Pascal Siakam", "Bam Adebayo",
+  "Jayson Tatum", "Khris Middleton", "Nikola Vučević", "Domantas Sabonis", "Julius Randle",
+  "Rudy Gobert", "Brandon Ingram", "Jaren Jackson Jr.", "Zion Williamson", "Paolo Banchero",
+  "Lauri Markkanen", "Andrew Wiggins", "Kyle Lowry", "Ben Simmons", "Al Horford",
+  "Jrue Holiday", "Evan Mobley", "Alperen Şengün", "Scottie Barnes", "Victor Wembanyama",
+];
+function slugify(name) {
+  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+const ALLSTAR_SLUGS = new Set(ALLSTAR_NAMES.map(slugify));
+const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
+function isAllstar(slug) {
+  if (ALLSTAR_SLUGS.has(slug)) return true;
+  const i = slug.lastIndexOf("-");
+  if (i <= 0) return false;
+  return NAME_SUFFIXES.has(slug.slice(i + 1)) && ALLSTAR_SLUGS.has(slug.slice(0, i));
+}
+
 const state = {
   data: null,
   season: "career",
   mode: "pg",
   minGames: 30,
   lb: "garbage-pts",
-  threshold: 20,
   drillStat: "pts",
   player: null,
   taIndex: -1,
@@ -273,13 +293,6 @@ function wireControls() {
       state.mode = b.dataset.mode;
       setActive("#modeToggle button", b);
       renderAll();
-    });
-  });
-  document.querySelectorAll("#thrToggle button").forEach(b => {
-    b.addEventListener("click", () => {
-      state.threshold = parseInt(b.dataset.thr, 10);
-      setActive("#thrToggle button", b);
-      renderLeaderboard();
     });
   });
   document.getElementById("pClose").addEventListener("click", closePlayer);
@@ -410,7 +423,7 @@ function renderPlayer() {
     if (isRate) {
       offS = fmtRate(off); realS = fmtRate(real); garS = fmtRate(gar);
       delta = (real - off) * 100;
-      deltaS = signed(delta, 1) + " pp";
+      deltaS = null;
       gpctCell = `<td class="muted">—</td>`;
     } else {
       offS = fmtCount(off, o.gp); realS = fmtCount(real, o.gp); garS = fmtCount(gar, o.gp);
@@ -420,12 +433,15 @@ function renderPlayer() {
       gpctCell = `<td class="gpct" style="background:${garbagePctColor(share)}">${share.toFixed(2)}%</td>`;
     }
     const cls = delta < -0.0001 ? "neg" : (delta > 0.0001 ? "pos" : "flat");
+    const deltaCell = deltaS === null
+      ? `<td class="muted">—</td>`
+      : `<td class="delta deemph ${cls}">${deltaS}</td>`;
     return `<tr class="${isCareer ? "career-row" : ""}">` +
       `<td class="left">${isCareer ? "Career" : seasonName}</td>` +
       `<td>${o.gp}</td>` +
       `<td>${offS}</td><td>${realS}</td><td>${garS}</td>` +
       gpctCell +
-      `<td class="delta deemph ${cls}">${deltaS}</td></tr>`;
+      deltaCell + "</tr>";
   }
 
   for (const s of seasonKeys) html += row(s, p.seasons[s], false);
@@ -457,7 +473,6 @@ function selectBoard(lb) {
   state.sortKey = null;
   document.querySelectorAll("#lbTiles .tile").forEach(t =>
     t.classList.toggle("active", t.dataset.lb === lb));
-  document.getElementById("starToggle").style.display = lb === "stars" ? "" : "none";
   renderLeaderboard();
 }
 
@@ -486,7 +501,7 @@ function leaderboardSpec(lb) {
   if (lb === "stars") {
     return {
       title: "Stars in Garbage Time",
-      desc: "Real rotation stars (by official scoring) who still pad the most in garbage time.",
+      desc: "NBA All-Stars (2017–2025 selections), ranked by garbage-time points.",
       compute: r => { const o = r.o, gp = o.gp;
         r.offPpg = gp > 0 ? o.pts[0] / gp : 0;
         r.garPts = o.pts[2];
@@ -501,7 +516,7 @@ function leaderboardSpec(lb) {
           fmt: r => r.garShare.toFixed(2) + "%", bg: r => garbagePctColor(r.garShare) },
       ],
       defaultSort: { id: "gar", dir: "desc" },
-      filter: r => r.offPpg >= state.threshold,
+      filter: r => isAllstar(r.p.slug),
     };
   }
   const meta = PER_STAT[lb], k = meta.stat, L = meta.label;
@@ -566,7 +581,7 @@ function renderLeaderboard() {
     "</tr></thead><tbody>";
 
   if (!rows.length) {
-    html += `<tr><td colspan="${spec.cols.length + 2}" class="empty">No players meet the filters (min ${state.minGames} games${state.lb === "stars" ? ", " + state.threshold + "+ official PPG" : ""}) for ${state.season === "career" ? "career" : state.season}.</td></tr>`;
+    html += `<tr><td colspan="${spec.cols.length + 2}" class="empty">No players meet the filters (min ${state.minGames} games${state.lb === "stars" ? ", All-Star selections only" : ""}) for ${state.season === "career" ? "career" : state.season}.</td></tr>`;
   } else {
     rows.forEach((r, i) => {
       html += `<tr><td class="rank">${i + 1}</td>` +

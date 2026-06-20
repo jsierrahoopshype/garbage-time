@@ -7,6 +7,8 @@ import bisect
 import html
 import json
 import os
+import re
+import unicodedata
 from datetime import date, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +17,6 @@ DATA_PATH = os.path.join(HERE, "data", "garbage_time_for_web.json")
 BASE_URL = "https://jsierrahoopshype.github.io/garbage-time"
 
 MIN_GAMES = 30
-STAR_THRESHOLD = 20
 TOP_N = 100
 HUB_TOP_N = 25
 
@@ -39,13 +40,48 @@ STAT_LABEL = {s: lab for s, lab, _n, _f in GARBAGE_STATS}
 STAT_NAME = {s: name for s, _l, name, _f in GARBAGE_STATS}
 STAT_FULL = {s: full for s, _l, _n, full in GARBAGE_STATS}
 
+
+def slugify(name):
+    s = unicodedata.normalize("NFKD", name)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+ALLSTAR_NAMES = [
+    "Stephen Curry", "James Harden", "Russell Westbrook", "Chris Paul", "Damian Lillard",
+    "Klay Thompson", "DeMar DeRozan", "Kyrie Irving", "John Wall", "Isaiah Thomas",
+    "Bradley Beal", "Victor Oladipo", "Kemba Walker", "Devin Booker", "Donovan Mitchell",
+    "Luka Dončić", "Trae Young", "Shai Gilgeous-Alexander", "Jaylen Brown", "Zach LaVine",
+    "Ja Morant", "Jalen Brunson", "Tyrese Maxey", "Tyrese Haliburton", "Anthony Edwards",
+    "De'Aaron Fox", "Darius Garland", "Dejounte Murray", "Fred VanVleet", "Cade Cunningham",
+    "Tyler Herro", "Goran Dragić", "D'Angelo Russell", "Jarrett Allen", "Mike Conley",
+    "LeBron James", "Kevin Durant", "Giannis Antetokounmpo", "Kawhi Leonard", "Anthony Davis",
+    "Paul George", "Jimmy Butler", "Draymond Green", "Kristaps Porziņģis", "Gordon Hayward",
+    "Paul Millsap", "Kevin Love", "Carmelo Anthony", "Blake Griffin", "DeMarcus Cousins",
+    "Karl-Anthony Towns", "Joel Embiid", "Nikola Jokić", "Pascal Siakam", "Bam Adebayo",
+    "Jayson Tatum", "Khris Middleton", "Nikola Vučević", "Domantas Sabonis", "Julius Randle",
+    "Rudy Gobert", "Brandon Ingram", "Jaren Jackson Jr.", "Zion Williamson", "Paolo Banchero",
+    "Lauri Markkanen", "Andrew Wiggins", "Kyle Lowry", "Ben Simmons", "Al Horford",
+    "Jrue Holiday", "Evan Mobley", "Alperen Şengün", "Scottie Barnes", "Victor Wembanyama",
+]
+ALLSTAR_SLUGS = frozenset(slugify(n) for n in ALLSTAR_NAMES)
+_NAME_SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
+
+
+def is_allstar(slug):
+    if slug in ALLSTAR_SLUGS:
+        return True
+    base, _, suf = slug.rpartition("-")
+    return bool(base) and suf in _NAME_SUFFIXES and base in ALLSTAR_SLUGS
+
+
 SCORING_TITLE = {
     "biggest-droppers": "Biggest Droppers",
     "star-stat-padders": "Stars in Garbage Time",
 }
 SCORING_BLURB = {
     "biggest-droppers": "Players whose scoring falls the most once garbage time is removed (Δ = real PPG − official PPG).",
-    "star-stat-padders": "Real rotation stars (%d+ official PPG) who still pad the most in garbage time." % STAR_THRESHOLD,
+    "star-stat-padders": "NBA All-Stars (2017-2025 selections), ranked by garbage-time points.",
 }
 
 NAV_BOARDS = ([("garbage-%s" % s, "Garbage %s" % lab) for s, lab, _n, _f in GARBAGE_STATS]
@@ -54,6 +90,8 @@ NAV_BOARDS = ([("garbage-%s" % s, "Garbage %s" % lab) for s, lab, _n, _f in GARB
 
 COUNT_STATS = [("pts", "PTS"), ("reb", "REB"), ("ast", "AST"), ("stl", "STL"),
                ("blk", "BLK"), ("tov", "TOV"), ("fg3m", "3PM")]
+
+COMBINE_STATS = ("pts", "reb", "ast", "stl", "blk")
 
 
 SORT_SCRIPT = """<script>
@@ -272,7 +310,7 @@ def season_tabs(stem, seasons, active_season):
     return '<div class="chips" style="margin:.6rem 0 1rem">' + "".join(chips) + "</div>"
 
 
-def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
+def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_suggestions, updated):
     name = player["name"]
     car = player["career"]
     gp = car["gp"]
@@ -281,6 +319,12 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
     gar_pts = car["pts"][2]
     d_ppg = real_ppg - off_ppg
     car_share = (car["pts"][2] / car["pts"][0] * 100) if car["pts"][0] else 0.0
+    comb_off = sum(car[k][0] for k in COMBINE_STATS)
+    comb_real = sum(car[k][1] for k in COMBINE_STATS)
+    comb_gar = sum(car[k][2] for k in COMBINE_STATS)
+    comb_off_pg = pg(comb_off, gp)
+    comb_real_pg = pg(comb_real, gp)
+    comb_share = (comb_gar / comb_off * 100) if comb_off else 0.0
     seasons = sorted(player["seasons"].keys(), reverse=True)
 
     title = "%s Garbage-Time Stats | HoopsMatic" % name
@@ -303,7 +347,7 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
                  % (esc(name), len(seasons), "" if len(seasons) == 1 else "s", gp))
     parts.append("</div>")
 
-    parts.append('<div class="stat-cards">')
+    parts.append('<div class="stat-cards compact">')
     parts.append('<div class="stat-card"><div class="lbl">Official PPG</div>'
                  '<div class="num flat">%.1f</div><div class="sub">as in the box score</div></div>' % off_ppg)
     parts.append('<div class="stat-card"><div class="lbl">Real PPG</div>'
@@ -313,6 +357,20 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
                  '<div class="num">%.2f%%</div>'
                  '<div class="sub">%s garbage pts · Δ %s PPG</div></div>'
                  % (garbage_pct_color(car_share), car_share, fmt_total(gar_pts), signed(d_ppg)))
+    parts.append("</div>")
+
+    parts.append('<div class="stat-cards compact">')
+    parts.append('<div class="stat-card"><div class="lbl">Combined official /g</div>'
+                 '<div class="num flat">%.1f</div>'
+                 '<div class="sub">PTS+REB+AST+STL+BLK · box-score sum</div></div>' % comb_off_pg)
+    parts.append('<div class="stat-card"><div class="lbl">Combined real /g</div>'
+                 '<div class="num flat">%.1f</div>'
+                 '<div class="sub">garbage time removed</div></div>' % comb_real_pg)
+    parts.append('<div class="stat-card gpct-card" style="background:%s">'
+                 '<div class="lbl">Combined garbage %%</div>'
+                 '<div class="num">%.2f%%</div>'
+                 '<div class="sub">garbage sum ÷ official sum</div></div>'
+                 % (garbage_pct_color(comb_share), comb_share))
     parts.append("</div>")
 
     parts.append('<div class="section">')
@@ -364,12 +422,9 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
         r_off = bucket(car, rkey, 0)
         r_real = bucket(car, rkey, 1)
         r_gar = bucket(car, rkey, 2)
-        dr = (r_real - r_off) * 100
         parts.append('<tr><td class="left">%s</td><td>%s</td><td>%s</td><td>%s</td>'
-                     '<td class="muted">—</td>'
-                     '<td class="delta deemph %s">%s pp</td></tr>'
-                     % (rlabel, fmt_pct(r_off), fmt_pct(r_real), fmt_pct(r_gar),
-                        delta_cls(dr), signed(dr)))
+                     '<td class="muted">—</td><td class="muted">—</td></tr>'
+                     % (rlabel, fmt_pct(r_off), fmt_pct(r_real), fmt_pct(r_gar)))
     parts.append("</tbody></table></div></div>")
 
     if neighbors:
@@ -384,6 +439,24 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, updated):
                          '<span class="en">%s</span>'
                          '<span class="ec gpct" style="background:%s">%.2f%%</span></a>'
                          % (slug_of[nb["id"]], headshot(nb["id"]), esc(nb["name"]),
+                            garbage_pct_color(share), share))
+        parts.append("</div></div>")
+
+    sugg = [a for a in allstar_suggestions if a["id"] != player["id"]][:6]
+    if sugg:
+        parts.append('<div class="section">')
+        parts.append('<div class="section-head"><h2>Suggested NBA stars</h2>'
+                     '<a class="more" href="../leaderboards/star-stat-padders-career.html">'
+                     'Stars in Garbage Time →</a></div>')
+        parts.append('<div class="hint">All-Stars with the most career garbage-time points.</div>')
+        parts.append('<div class="egrid">')
+        for a in sugg:
+            share = gpct_of[a["id"]]
+            parts.append('<a class="ecard" href="%s.html">'
+                         '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
+                         '<span class="en">%s</span>'
+                         '<span class="ec gpct" style="background:%s">%.2f%%</span></a>'
+                         % (slug_of[a["id"]], headshot(a["id"]), esc(a["name"]),
                             garbage_pct_color(share), share))
         parts.append("</div></div>")
 
@@ -502,19 +575,18 @@ def board_data(board_key, season, players):
             else:
                 desc = "NBA garbage-time biggest droppers leaderboard, %s. Min %d games." % (slabel, MIN_GAMES)
         else:
-            rows = [r for r in rows if r["off_ppg"] >= STAR_THRESHOLD]
+            rows = [r for r in rows if is_allstar(r["p"]["slug"])]
             rows.sort(key=lambda r: r["gar_pts"], reverse=True)
             rows = rows[:TOP_N]
             cols = _stars_cols()
             disp = SCORING_TITLE[board_key]
-            note = "Minimum %d games · %d+ official PPG." % (MIN_GAMES, STAR_THRESHOLD)
+            note = "Minimum %d games · 2017–2025 All-Star selections." % MIN_GAMES
             if rows:
-                desc = ("NBA stars (%d+ official PPG) padding the most in garbage time, %s. "
+                desc = ("NBA All-Stars (2017–2025 selections) ranked by garbage-time points, %s. "
                         "%s tops it with %s garbage points. Min %d games."
-                        % (STAR_THRESHOLD, slabel, rows[0]["p"]["name"],
-                           fmt_total(rows[0]["gar_pts"]), MIN_GAMES))
+                        % (slabel, rows[0]["p"]["name"], fmt_total(rows[0]["gar_pts"]), MIN_GAMES))
             else:
-                desc = "NBA stars-in-garbage-time leaderboard, %s. Min %d games." % (slabel, MIN_GAMES)
+                desc = "NBA All-Star garbage-time leaderboard, %s. Min %d games." % (slabel, MIN_GAMES)
         subtitle = "%s %s" % (esc(SCORING_BLURB[board_key]), esc(note))
         title = "NBA Garbage-Time %s — %s | HoopsMatic" % (disp, slabel)
 
@@ -698,12 +770,16 @@ def main():
     slug_of = build_slug_map(players)
     neighbors_by_id, gpct_by_id = compute_neighbors(players)
 
+    allstar_suggestions = sorted((p for p in players if is_allstar(p["slug"])),
+                                 key=lambda p: p["career"]["pts"][2], reverse=True)[:8]
+
     urls = [BASE_URL + "/", BASE_URL + "/p/index.html", BASE_URL + "/leaderboards/index.html"]
 
     for p in players:
         slug = slug_of[p["id"]]
         write("p/%s.html" % slug,
-              render_player(p, slug, slug_of, neighbors_by_id[p["id"]], gpct_by_id, updated))
+              render_player(p, slug, slug_of, neighbors_by_id[p["id"]], gpct_by_id,
+                            allstar_suggestions, updated))
         urls.append("%s/p/%s.html" % (BASE_URL, slug))
     write("p/index.html", render_players_index(players, slug_of, gpct_by_id, updated))
 
