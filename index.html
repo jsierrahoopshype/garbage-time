@@ -63,25 +63,6 @@
 
   <div class="loading" id="loading">Loading garbage-time data…</div>
 
-  <!-- Player drilldown -->
-  <section class="section" id="player" hidden>
-    <div class="p-head">
-      <img class="shot" id="pShot" alt="" />
-      <div>
-        <div class="nm" id="pName"></div>
-        <div class="meta" id="pMeta"></div>
-      </div>
-      <div class="p-actions">
-        <a class="p-link" id="pFull" href="#">View full page →</a>
-        <button class="p-close" id="pClose">✕ Close</button>
-      </div>
-    </div>
-    <div class="statpicker" id="statPicker"></div>
-    <div class="table-wrap">
-      <table class="lb" id="pTable"></table>
-    </div>
-  </section>
-
   <!-- Leaderboards -->
   <section id="board" hidden>
     <div class="block-head">
@@ -99,11 +80,6 @@
       <table class="lb sortable" id="lbTable"></table>
     </div>
   </section>
-
-  <div class="foot">
-    HoopsMatic · Garbage-time splits derived from play-by-play. "Real" numbers exclude garbage-time
-    stretches; "official" match the box score. Headshots via cdn.nba.com.
-  </div>
 </div>
 
 <script>
@@ -116,23 +92,6 @@ const FALLBACK_SHOT =
   );
 function headshot(id) { return "https://cdn.nba.com/headshots/nba/latest/260x190/" + id + ".png"; }
 function onShotErr(img) { if (img.src !== FALLBACK_SHOT) { img.onerror = null; img.src = FALLBACK_SHOT; } }
-
-const COUNT_STATS = [
-  { key: "pts", label: "PTS" },
-  { key: "reb", label: "REB" },
-  { key: "ast", label: "AST" },
-  { key: "stl", label: "STL" },
-  { key: "blk", label: "BLK" },
-  { key: "tov", label: "TOV" },
-  { key: "fg3m", label: "3PM" },
-];
-const RATE_STATS = [
-  { key: "efg", label: "eFG%" },
-  { key: "fgpct", label: "FG%" },
-];
-const STAT_LABEL = {};
-COUNT_STATS.concat(RATE_STATS).forEach(s => STAT_LABEL[s.key] = s.label);
-const RATE_KEYS = new Set(RATE_STATS.map(s => s.key));
 
 const PER_STAT = {
   "garbage-pts": { stat: "pts", label: "PTS", name: "Garbage-Time Points", full: "points" },
@@ -192,8 +151,6 @@ const state = {
   mode: "pg",
   minGames: 30,
   lb: "garbage-pts",
-  drillStat: "pts",
-  player: null,
   taIndex: -1,
   taMatches: [],
   dupSlugs: new Set(),
@@ -205,25 +162,19 @@ function statObj(player, season) {
   return season === "career" ? player.career : (player.seasons[season] || null);
 }
 function bucketValue(o, statKey, b) {
-  if (statKey === "efg") return o.fga[b] > 0 ? (o.fgm[b] + 0.5 * o.fg3m[b]) / o.fga[b] : 0;
-  if (statKey === "fgpct") return o.fga[b] > 0 ? o.fgm[b] / o.fga[b] : 0;
   const v = o[statKey];
   return Array.isArray(v) ? v[b] : 0;
 }
-function fmtCount(total, gp) {
-  if (state.mode === "pg") return gp > 0 ? (total / gp).toFixed(1) : "0.0";
-  return Math.round(total).toLocaleString();
-}
-function fmtRate(v) { return (v * 100).toFixed(2) + "%"; }
 function fmtTotal(n) { return Math.round(n).toLocaleString(); }
 function signed(n, digits) { return (n > 0 ? "+" : "") + n.toFixed(digits); }
 
-const GARBAGE_PCT_MAX = 35;
+const GARBAGE_PCT_MAX = 75, GARBAGE_PCT_GAMMA = 0.65;
 function garbagePctColor(pct) {
   let t = pct / GARBAGE_PCT_MAX;
   t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  t = Math.pow(t, GARBAGE_PCT_GAMMA);
   const hue = Math.round(120 * (1 - t));
-  return `hsl(${hue}, 80%, 85%)`;
+  return `hsl(${hue}, 85%, 80%)`;
 }
 
 function playerSlug(p) { return state.dupSlugs.has(p.slug) ? p.slug + "-" + p.id : p.slug; }
@@ -268,15 +219,8 @@ function init(data) {
   state.search = data.players.map(p => ({ p, low: p.name.toLowerCase() }));
 
   wireControls();
-  buildStatPicker();
   buildTiles();
   renderLeaderboard();
-
-  const want = new URLSearchParams(location.search).get("player");
-  if (want) {
-    const p = data.players.find(x => playerSlug(x) === want || x.slug === want);
-    if (p) selectPlayer(p.id, { noScroll: false });
-  }
 }
 
 function wireControls() {
@@ -295,22 +239,13 @@ function wireControls() {
       renderAll();
     });
   });
-  document.getElementById("pClose").addEventListener("click", closePlayer);
   setupSearch();
 }
 function setActive(sel, el) {
   document.querySelectorAll(sel).forEach(x => x.classList.remove("active"));
   el.classList.add("active");
 }
-function renderAll() { renderLeaderboard(); if (state.player) renderPlayer(); }
-
-function wirePlayerLink(el, id) {
-  el.addEventListener("click", e => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();
-    selectPlayer(id);
-  });
-}
+function renderAll() { renderLeaderboard(); }
 
 function setupSearch() {
   const input = document.getElementById("search");
@@ -322,7 +257,7 @@ function setupSearch() {
     if (!box.classList.contains("open") || !items.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); state.taIndex = (state.taIndex + 1) % items.length; paintTa(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); state.taIndex = (state.taIndex - 1 + items.length) % items.length; paintTa(); }
-    else if (e.key === "Enter") { e.preventDefault(); const pick = items[state.taIndex] || items[0]; if (pick) selectPlayer(pick.id); }
+    else if (e.key === "Enter") { e.preventDefault(); const pick = items[state.taIndex] || items[0]; if (pick) location.href = playerPath(pick.p); }
     else if (e.key === "Escape") { closeTa(); }
   });
   document.addEventListener("click", e => { if (!e.target.closest(".search-wrap")) closeTa(); });
@@ -351,104 +286,12 @@ function runSearch(q) {
 function paintTa() {
   const box = document.getElementById("typeahead");
   box.innerHTML = state.taMatches.map((m, i) =>
-    `<a class="ta-item ${i === state.taIndex ? "active" : ""}" href="${playerPath(m.p)}" data-id="${m.id}">
+    `<a class="ta-item ${i === state.taIndex ? "active" : ""}" href="${playerPath(m.p)}">
        <img src="${headshot(m.id)}" onerror="onShotErr(this)" alt="">
        <span class="nm">${escapeHtml(m.name)}</span>
      </a>`).join("");
-  box.querySelectorAll(".ta-item").forEach(el => wirePlayerLink(el, parseInt(el.dataset.id, 10)));
 }
 function closeTa() { document.getElementById("typeahead").classList.remove("open"); state.taIndex = -1; }
-
-function buildStatPicker() {
-  const wrap = document.getElementById("statPicker");
-  wrap.innerHTML = COUNT_STATS.concat(RATE_STATS).map(s =>
-    `<button data-stat="${s.key}" class="${s.key === state.drillStat ? "active" : ""}">${s.label}</button>`).join("");
-  wrap.querySelectorAll("button").forEach(b => {
-    b.addEventListener("click", () => {
-      state.drillStat = b.dataset.stat;
-      setActive("#statPicker button", b);
-      renderPlayer();
-    });
-  });
-}
-function selectPlayer(id, opts) {
-  opts = opts || {};
-  const p = state.data.players.find(x => x.id === id);
-  if (!p) return;
-  state.player = p;
-  closeTa();
-  document.getElementById("search").value = "";
-  renderPlayer();
-  if (!opts.noScroll) document.getElementById("player").scrollIntoView({ behavior: "smooth", block: "start" });
-}
-function closePlayer() {
-  state.player = null;
-  document.getElementById("player").hidden = true;
-}
-function renderPlayer() {
-  const p = state.player;
-  if (!p) return;
-  document.getElementById("player").hidden = false;
-
-  const shot = document.getElementById("pShot");
-  shot.src = headshot(p.id); shot.onerror = function () { onShotErr(this); };
-  document.getElementById("pName").textContent = p.name;
-  document.getElementById("pFull").href = playerPath(p);
-
-  const seasonKeys = Object.keys(p.seasons || {}).sort().reverse();
-  const careerGp = p.career ? p.career.gp : 0;
-  document.getElementById("pMeta").textContent =
-    seasonKeys.length + " season" + (seasonKeys.length === 1 ? "" : "s") + " · " + careerGp + " career GP";
-
-  const statKey = state.drillStat;
-  const isRate = RATE_KEYS.has(statKey);
-  const unit = state.mode === "pg" && !isRate ? " /g" : "";
-  const label = STAT_LABEL[statKey];
-
-  let html = "<thead><tr>" +
-    "<th class='left'>Season</th><th>GP</th>" +
-    `<th>Official ${label}${unit}</th>` +
-    `<th>Real ${label}${unit}</th>` +
-    `<th>Garbage ${label}${unit}</th>` +
-    `<th class="dcol">Garbage %</th>` +
-    `<th>Δ (real − official)</th>` +
-    "</tr></thead><tbody>";
-
-  function row(seasonName, o, isCareer) {
-    if (!o) return "";
-    const off = bucketValue(o, statKey, 0);
-    const real = bucketValue(o, statKey, 1);
-    const gar = bucketValue(o, statKey, 2);
-    let offS, realS, garS, delta, deltaS, gpctCell;
-    if (isRate) {
-      offS = fmtRate(off); realS = fmtRate(real); garS = fmtRate(gar);
-      delta = (real - off) * 100;
-      deltaS = null;
-      gpctCell = `<td class="muted">—</td>`;
-    } else {
-      offS = fmtCount(off, o.gp); realS = fmtCount(real, o.gp); garS = fmtCount(gar, o.gp);
-      delta = state.mode === "pg" ? (o.gp > 0 ? (real - off) / o.gp : 0) : (real - off);
-      deltaS = state.mode === "pg" ? signed(delta, 1) : signed(delta, 0);
-      const share = off > 0 ? gar / off * 100 : 0;
-      gpctCell = `<td class="gpct" style="background:${garbagePctColor(share)}">${share.toFixed(2)}%</td>`;
-    }
-    const cls = delta < -0.0001 ? "neg" : (delta > 0.0001 ? "pos" : "flat");
-    const deltaCell = deltaS === null
-      ? `<td class="muted">—</td>`
-      : `<td class="delta deemph ${cls}">${deltaS}</td>`;
-    return `<tr class="${isCareer ? "career-row" : ""}">` +
-      `<td class="left">${isCareer ? "Career" : seasonName}</td>` +
-      `<td>${o.gp}</td>` +
-      `<td>${offS}</td><td>${realS}</td><td>${garS}</td>` +
-      gpctCell +
-      deltaCell + "</tr>";
-  }
-
-  for (const s of seasonKeys) html += row(s, p.seasons[s], false);
-  html += row("Career", p.career, true);
-  html += "</tbody>";
-  document.getElementById("pTable").innerHTML = html;
-}
 
 function qualifies(o) { return o && o.gp >= state.minGames; }
 
@@ -586,7 +429,7 @@ function renderLeaderboard() {
     rows.forEach((r, i) => {
       html += `<tr><td class="rank">${i + 1}</td>` +
         `<td class="left"><span class="pcell"><img src="${headshot(r.p.id)}" onerror="onShotErr(this)" alt="">` +
-        `<a href="${playerPath(r.p)}" data-id="${r.p.id}">${escapeHtml(r.p.name)}</a></span></td>` +
+        `<a href="${playerPath(r.p)}">${escapeHtml(r.p.name)}</a></span></td>` +
         spec.cols.map(c => {
           const extra = c.cls ? " " + c.cls(r) : "";
           let cls = c.delta ? "dcol delta" + extra : "";
@@ -602,7 +445,6 @@ function renderLeaderboard() {
   html += "</tbody>";
   const t = document.getElementById("lbTable");
   t.innerHTML = html;
-  t.querySelectorAll(".pcell a").forEach(el => wirePlayerLink(el, parseInt(el.dataset.id, 10)));
   t.querySelectorAll("th[data-col]").forEach(el => {
     el.addEventListener("click", () => {
       const id = el.dataset.col;

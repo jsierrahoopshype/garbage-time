@@ -134,22 +134,6 @@ tr.career-row:hover td{background:var(--accent-dim)}
 .section .hint{font-size:.74rem;color:var(--text-secondary);margin-bottom:.9rem}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
 .section-head h2{margin-bottom:0}
-.p-head{display:flex;align-items:center;gap:1rem;margin-bottom:.9rem}
-.p-head img.shot{width:64px;height:47px;border-radius:8px;object-fit:cover;background:var(--surface-hover);
-  border:1px solid var(--border);flex-shrink:0}
-.p-head .nm{font-size:1.3rem;font-weight:700;letter-spacing:-.02em}
-.p-head .meta{font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--text-secondary);margin-top:.15rem}
-.p-head .p-actions{margin-left:auto;display:flex;gap:.5rem;align-items:center}
-.p-link{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:600;color:var(--accent)}
-.p-close{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:600;padding:.34rem .7rem;
-  border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-secondary);cursor:pointer}
-.p-close:hover{border-color:var(--accent);color:var(--accent)}
-.statpicker{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.8rem}
-.statpicker button{font-family:'JetBrains Mono',monospace;font-size:.66rem;font-weight:600;padding:.3rem .7rem;
-  border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-secondary);
-  cursor:pointer;transition:.12s;text-transform:uppercase;letter-spacing:.03em}
-.statpicker button:hover{border-color:var(--accent);color:var(--accent)}
-.statpicker button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .back{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);
   display:inline-block;margin-bottom:1rem}
 .back:hover{color:var(--accent);text-decoration:none}
@@ -171,8 +155,6 @@ tr.career-row:hover td{background:var(--accent-dim)}
   margin:1.1rem 0 .5rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--text-secondary)}
 .loading{text-align:center;padding:3rem 1rem;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:.8rem}
-.foot{text-align:center;font-size:.72rem;color:var(--text-secondary);margin-top:1.6rem;
-  font-family:'JetBrains Mono',monospace;line-height:1.7}
 @media(max-width:860px){
   .container{padding:1rem 1rem 3rem}
   .hdr h1{font-size:1.15rem}
@@ -186,15 +168,14 @@ tr.career-row:hover td{background:var(--accent-dim)}
 @media(max-width:560px){
   .stat-cards{grid-template-columns:1fr 1fr 1fr}
 }
+/* mobile: keep every table column reachable (#6).
+   iOS Safari is unreliable with position:sticky on table cells inside an
+   overflow-x:auto container (and with border-collapse:collapse it often drops
+   the sticky offset entirely), so we do NOT pin a column. Instead the table is
+   allowed to grow to its content width and the wrapper scrolls horizontally —
+   so nothing is clipped and every column can be scrolled into view. */
 @media(max-width:680px){
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.lb{min-width:max-content}
   table.lb th,table.lb td{white-space:nowrap}
-  table.lb td.rank{position:sticky;left:0;z-index:3;background:var(--surface)}
-  table.lb th.rank{position:sticky;left:0;z-index:4}
-  table.lb .rank{width:2.4rem;min-width:2.4rem}
-  table.lb td.left{position:sticky;left:0;z-index:3;background:var(--surface);box-shadow:1px 0 0 var(--border)}
-  table.lb th.left{position:sticky;left:0;z-index:4;box-shadow:1px 0 0 var(--border)}
-  table.lb .rank + .left{left:2.4rem}
-  tr.career-row td.left{background:var(--accent-dim)}
-  .pcell{max-width:46vw}
-  .pcell a{overflow:hidden;text-overflow:ellipsis;min-width:0}
 }

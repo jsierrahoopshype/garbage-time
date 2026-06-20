@@ -20,7 +20,11 @@ MIN_GAMES = 30
 TOP_N = 100
 HUB_TOP_N = 25
 
-GARBAGE_PCT_MAX = 35.0
+# Garbage-% green→red gradient (#1, #5). Normalised by GARBAGE_PCT_MAX (value
+# that reaches full red), then bent by gamma < 1 so the common 5-40% range
+# spreads across green→orange. Shared verbatim with index.html.
+GARBAGE_PCT_MAX = 75.0
+GARBAGE_PCT_GAMMA = 0.65
 
 FONTS = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">'
@@ -185,10 +189,13 @@ def delta_cls(n):
 
 
 def garbage_pct_color(pct):
+    """Green (low) → red (high). Mirror of garbagePctColor() in index.html;
+    the + 0.5 floor matches JS Math.round so both emit identical hues."""
     t = pct / GARBAGE_PCT_MAX
     t = 0.0 if t < 0 else (1.0 if t > 1 else t)
-    hue = int(round(120 * (1 - t)))
-    return "hsl(%d, 80%%, 85%%)" % hue
+    t = t ** GARBAGE_PCT_GAMMA
+    hue = int(120 * (1 - t) + 0.5)
+    return "hsl(%d, 85%%, 80%%)" % hue
 
 
 def season_label(season):
@@ -272,12 +279,8 @@ def page_head(title, description, canonical_path, og_image=None, og_type="websit
 
 
 def page_foot(updated):
-    stamp = (" · updated " + esc(updated)) if updated else ""
-    return (
-        '<div class="foot">HoopsMatic · Garbage-time splits derived from play-by-play. '
-        '"Real" numbers exclude garbage-time stretches; "official" match the box score.'
-        + stamp + "</div>\n</div>\n</body>\n</html>\n"
-    )
+    # Footer line removed (#3); just closes the structural wrappers.
+    return "</div>\n</body>\n</html>\n"
 
 
 def nav_tabs(active):
@@ -460,8 +463,8 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_suggestions
                             garbage_pct_color(share), share))
         parts.append("</div></div>")
 
-    parts.append('<p style="margin:.2rem 0 1rem"><a class="chip" href="../index.html?player=%s">'
-                 'Explore interactively →</a></p>' % esc(slug))
+    parts.append('<p style="margin:.2rem 0 1rem"><a class="chip" href="../index.html">'
+                 '← Search other players</a></p>')
 
     parts.append(page_foot(updated))
     return "\n".join(parts)
@@ -684,9 +687,11 @@ def render_players_index(players, slug_of, gpct_by_id, updated):
 
     for letter in sorted(groups.keys()):
         parts.append('<div class="dir-letter">%s</div>' % esc(letter))
-        parts.append('<div class="table-wrap"><table class="lb"><thead><tr>'
-                     '<th class="left">Player</th><th>GP</th><th>Official PPG</th>'
-                     '<th>Garbage PPG</th><th class="dcol">Garbage %</th>'
+        parts.append('<div class="table-wrap"><table class="lb sortable"><thead><tr>'
+                     '<th class="left sortable-th">Player</th><th class="sortable-th">GP</th>'
+                     '<th class="sortable-th">Official PPG</th>'
+                     '<th class="sortable-th">Garbage PPG</th>'
+                     '<th class="dcol sortable-th">Garbage %</th>'
                      '</tr></thead><tbody>')
         for p in groups[letter]:
             car = p["career"]
@@ -702,6 +707,7 @@ def render_players_index(players, slug_of, gpct_by_id, updated):
                          % (headshot(p["id"]), slug_of[p["id"]], esc(p["name"]),
                             gpn, off, gar_pg, garbage_pct_color(share), share))
         parts.append("</tbody></table></div>")
+    parts.append(SORT_SCRIPT)
     parts.append(page_foot(updated))
     return "\n".join(parts)
 
@@ -725,8 +731,9 @@ def render_leaderboards_index(players, slug_of, seasons, updated):
                      '<a class="more" href="%s-career.html">View full leaderboard →</a></div>'
                      % (esc(data["disp"]), board_key))
         parts.append('<div class="hint">%s</div>' % data["subtitle"])
-        parts.append(render_lb_table(data["cols"], data["rows"][:HUB_TOP_N], slug_of, False, "Career"))
+        parts.append(render_lb_table(data["cols"], data["rows"][:HUB_TOP_N], slug_of, True, "Career"))
         parts.append("</div>")
+    parts.append(SORT_SCRIPT)
     parts.append(page_foot(updated))
     return "\n".join(parts)
 
