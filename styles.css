@@ -168,14 +168,41 @@ tr.career-row:hover td{background:var(--accent-dim)}
 @media(max-width:560px){
   .stat-cards{grid-template-columns:1fr 1fr 1fr}
 }
-/* mobile: keep every table column reachable (#6).
-   iOS Safari is unreliable with position:sticky on table cells inside an
-   overflow-x:auto container (and with border-collapse:collapse it often drops
-   the sticky offset entirely), so we do NOT pin a column. Instead the table is
-   allowed to grow to its content width and the wrapper scrolls horizontally —
-   so nothing is clipped and every column can be scrolled into view. */
+/* mobile (#2): ranking tables become stacked cards so nothing is clipped and
+   no horizontal scrolling/sticky tricks are needed (those failed on iOS
+   Safari). Scope: table.lb.sortable — i.e. the leaderboard boards, the
+   leaderboard hub previews and the All Players directory. The per-player
+   splits tables on player pages are table.lb (NOT .sortable) and keep the
+   normal horizontally-scrollable layout. One card per row: rank badge +
+   headshot + name across the top, then each stat as a labeled line
+   (label from td[data-label] via ::before). */
 @media(max-width:680px){
-  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table.lb{min-width:max-content}
-  table.lb th,table.lb td{white-space:nowrap}
+  /* per-player splits tables: stay a normal scrollable table */
+  table.lb:not(.sortable){min-width:max-content}
+  table.lb:not(.sortable) th,table.lb:not(.sortable) td{white-space:nowrap}
+
+  /* ranking tables: card layout */
+  table.lb.sortable{display:block;width:100%;min-width:0}
+  table.lb.sortable thead{display:none}
+  table.lb.sortable tbody{display:block}
+  table.lb.sortable tr{display:block;position:relative;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;padding:.6rem .75rem;margin:.55rem}
+  table.lb.sortable td{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+    text-align:right;white-space:normal;border:0;padding:.28rem 0;font-size:.86rem}
+  table.lb.sortable td::before{content:attr(data-label);text-align:left;color:var(--text-secondary);
+    font-family:'JetBrains Mono',monospace;font-size:.62rem;font-weight:600;
+    text-transform:uppercase;letter-spacing:.04em}
+  /* player cell = card header; rank sits in the top-right corner */
+  table.lb.sortable td.left{display:block;padding:0 2.4rem .5rem 0;margin-bottom:.45rem;
+    border-bottom:1px solid var(--border)}
+  table.lb.sortable td.left::before{content:none}
+  table.lb.sortable td.left .pcell img{width:34px;height:25px}
+  table.lb.sortable td.rank{position:absolute;top:.55rem;right:.7rem;display:block;width:auto;
+    padding:0;font-size:.74rem;color:var(--text-secondary)}
+  table.lb.sortable td.rank::before{content:"#"}
+  /* only the garbage-% line keeps a tint; reset the desktop accent on others */
+  table.lb.sortable td.dcol{background:initial}
+  table.lb.sortable td.gpct{padding:.28rem .45rem;border-radius:6px}
+  table.lb.sortable td.empty{justify-content:center;color:var(--text-secondary)}
+  table.lb.sortable td.empty::before{content:none}
 }

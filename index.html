@@ -438,7 +438,8 @@ function renderLeaderboard() {
             const color = c.bg(r);
             if (color) { style = ` style="background:${color}"`; cls = (cls + " gpct").trim(); }
           }
-          return `<td class="${cls}"${style}>${c.fmt(r)}</td>`;
+          // data-label drives the mobile card layout (td::before)
+          return `<td class="${cls}" data-label="${escapeHtml(c.label)}"${style}>${c.fmt(r)}</td>`;
         }).join("") + "</tr>";
     });
   }

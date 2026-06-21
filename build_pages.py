@@ -7,6 +7,7 @@ import bisect
 import html
 import json
 import os
+import random
 import re
 import unicodedata
 from datetime import date, datetime
@@ -313,7 +314,7 @@ def season_tabs(stem, seasons, active_season):
     return '<div class="chips" style="margin:.6rem 0 1rem">' + "".join(chips) + "</div>"
 
 
-def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_suggestions, updated):
+def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_pool, updated):
     name = player["name"]
     car = player["career"]
     gp = car["gp"]
@@ -445,7 +446,11 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_suggestions
                             garbage_pct_color(share), share))
         parts.append("</div></div>")
 
-    sugg = [a for a in allstar_suggestions if a["id"] != player["id"]][:6]
+    # suggested NBA stars — a per-player random sample of All-Stars, seeded by
+    # the player's id so it's stable across rebuilds but differs per page (#1).
+    cand = [a for a in allstar_pool if a["id"] != player["id"]]
+    sugg = random.Random(player["id"]).sample(cand, min(6, len(cand)))
+    sugg.sort(key=lambda a: gpct_of[a["id"]], reverse=True)
     if sugg:
         parts.append('<div class="section">')
         parts.append('<div class="section-head"><h2>Suggested NBA stars</h2>'
@@ -627,7 +632,7 @@ def render_lb_table(cols, rows, slug_of, sortable, empty_label):
                         '<a href="../p/%s.html">%s</a></span></td>'
                         % (headshot(p["id"]), pslug, esc(p["name"])))
             cells = []
-            for _h, is_d, fn, _d, bg in cols:
+            for header, is_d, fn, _d, bg in cols:
                 klass = "dcol" if is_d else ""
                 style = ""
                 if bg:
@@ -635,7 +640,9 @@ def render_lb_table(cols, rows, slug_of, sortable, empty_label):
                     if color:
                         style = ' style="background:%s"' % color
                         klass = (klass + " gpct").strip()
-                cells.append('<td class="%s"%s>%s</td>' % (klass, style, fn(r)))
+                # data-label drives the mobile card layout (td::before) (#2)
+                cells.append('<td class="%s" data-label="%s"%s>%s</td>'
+                             % (klass, esc(header), style, fn(r)))
             out.append('<tr><td class="rank">%d</td>%s%s</tr>' % (i, namecell, "".join(cells)))
     out.append("</tbody></table></div>")
     return "\n".join(out)
@@ -702,8 +709,10 @@ def render_players_index(players, slug_of, gpct_by_id, updated):
             parts.append('<tr><td class="left"><span class="pcell">'
                          '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
                          '<a href="%s.html">%s</a></span></td>'
-                         '<td>%d</td><td>%.1f</td><td>%.1f</td>'
-                         '<td class="gpct" style="background:%s">%.2f%%</td></tr>'
+                         '<td data-label="GP">%d</td>'
+                         '<td data-label="Official PPG">%.1f</td>'
+                         '<td data-label="Garbage PPG">%.1f</td>'
+                         '<td class="gpct" data-label="Garbage %%" style="background:%s">%.2f%%</td></tr>'
                          % (headshot(p["id"]), slug_of[p["id"]], esc(p["name"]),
                             gpn, off, gar_pg, garbage_pct_color(share), share))
         parts.append("</tbody></table></div>")
@@ -777,8 +786,8 @@ def main():
     slug_of = build_slug_map(players)
     neighbors_by_id, gpct_by_id = compute_neighbors(players)
 
-    allstar_suggestions = sorted((p for p in players if is_allstar(p["slug"])),
-                                 key=lambda p: p["career"]["pts"][2], reverse=True)[:8]
+    # full All-Star pool; each player page samples its own 6 (seeded by id)
+    allstar_pool = [p for p in players if is_allstar(p["slug"])]
 
     urls = [BASE_URL + "/", BASE_URL + "/p/index.html", BASE_URL + "/leaderboards/index.html"]
 
@@ -786,7 +795,7 @@ def main():
         slug = slug_of[p["id"]]
         write("p/%s.html" % slug,
               render_player(p, slug, slug_of, neighbors_by_id[p["id"]], gpct_by_id,
-                            allstar_suggestions, updated))
+                            allstar_pool, updated))
         urls.append("%s/p/%s.html" % (BASE_URL, slug))
     write("p/index.html", render_players_index(players, slug_of, gpct_by_id, updated))
 
