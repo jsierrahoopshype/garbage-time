@@ -49,13 +49,6 @@
       <select id="season"></select>
     </div>
     <div class="field">
-      <label>Display</label>
-      <div class="toggle" id="modeToggle">
-        <button data-mode="total">Totals</button>
-        <button data-mode="pg" class="active">Per Game</button>
-      </div>
-    </div>
-    <div class="field">
       <label for="minGames">Min games</label>
       <input type="number" id="minGames" min="0" step="1" value="30" />
     </div>
@@ -148,7 +141,6 @@ function isAllstar(slug) {
 const state = {
   data: null,
   season: "career",
-  mode: "pg",
   minGames: 30,
   lb: "garbage-pts",
   taIndex: -1,
@@ -232,18 +224,7 @@ function wireControls() {
     state.minGames = Math.max(0, parseInt(e.target.value || "0", 10));
     renderLeaderboard();
   });
-  document.querySelectorAll("#modeToggle button").forEach(b => {
-    b.addEventListener("click", () => {
-      state.mode = b.dataset.mode;
-      setActive("#modeToggle button", b);
-      renderAll();
-    });
-  });
   setupSearch();
-}
-function setActive(sel, el) {
-  document.querySelectorAll(sel).forEach(x => x.classList.remove("active"));
-  el.classList.add("active");
 }
 function renderAll() { renderLeaderboard(); }
 
@@ -352,9 +333,9 @@ function leaderboardSpec(lb) {
       cols: [
         { id: "gp", label: "GP", get: r => r.o.gp, fmt: r => r.o.gp },
         { id: "off", label: "Official PPG", get: r => r.offPpg, fmt: r => r.offPpg.toFixed(1) },
-        { id: "gar", label: state.mode === "pg" ? "Garbage PTS /g" : "Garbage PTS", delta: true,
+        { id: "gar", label: "Garbage PTS /g", delta: true,
           get: r => r.garPts,
-          fmt: r => state.mode === "pg" ? (r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(2) : "0.00") : fmtTotal(r.garPts) },
+          fmt: r => r.o.gp > 0 ? (r.garPts / r.o.gp).toFixed(2) : "0.00" },
         { id: "share", label: "Garbage % of pts", get: r => r.garShare,
           fmt: r => r.garShare.toFixed(2) + "%", bg: r => garbagePctColor(r.garShare) },
       ],

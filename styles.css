@@ -168,6 +168,26 @@ tr.career-row:hover td{background:var(--accent-dim)}
 @media(max-width:560px){
   .stat-cards{grid-template-columns:1fr 1fr 1fr}
 }
+/* mobile: tighten the home-page header chrome (subtitle, rule callout, filter
+   row, tiles) so the first leaderboard row comes up sooner. Nothing hidden —
+   just denser spacing/type. Desktop is unaffected. */
+@media(max-width:680px){
+  .subtitle{margin-bottom:.55rem}
+  .rule{padding:.5rem .6rem;margin-bottom:.6rem;font-size:.76rem;border-left-width:3px;border-radius:8px}
+  .rule .lbl{font-size:.56rem;margin-right:.3rem}
+  .controls{gap:.4rem .6rem;padding:.4rem 0 .5rem;margin-bottom:.6rem}
+  .field{gap:.18rem}
+  .field>label{font-size:.54rem}
+  select,input[type=number],input[type=text]{font-size:.82rem;padding:.38rem .5rem}
+  .tilegrid{gap:.4rem;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))}
+  .tile{gap:.1rem;padding:.5rem .6rem;border-radius:10px}
+  .tile .ab{font-size:1rem}
+  .tile .tl{font-size:.78rem}
+  .tile .ts{font-size:.55rem}
+  #board .block-head{margin-bottom:.4rem}
+  #board .block-head[style]{margin-top:.9rem !important}
+}
+
 /* mobile (#2): ranking tables become stacked cards so nothing is clipped and
    no horizontal scrolling/sticky tricks are needed (those failed on iOS
    Safari). Scope: table.lb.sortable — i.e. the leaderboard boards, the
