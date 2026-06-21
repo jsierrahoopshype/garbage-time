@@ -179,11 +179,11 @@ tr.career-row:hover td{background:var(--accent-dim)}
   .field{gap:.18rem}
   .field>label{font-size:.54rem}
   select,input[type=number],input[type=text]{font-size:.82rem;padding:.38rem .5rem}
-  .tilegrid{gap:.4rem;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))}
-  .tile{gap:.1rem;padding:.5rem .6rem;border-radius:10px}
-  .tile .ab{font-size:1rem}
-  .tile .tl{font-size:.78rem}
-  .tile .ts{font-size:.55rem}
+  .tilegrid{gap:.35rem;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))}
+  .tile{gap:.05rem;padding:.35rem .3rem;border-radius:9px}
+  .tile .ab{font-size:.82rem}
+  .tile .tl{font-size:.64rem}
+  .tile .ts{display:none}
   #board .block-head{margin-bottom:.4rem}
   #board .block-head[style]{margin-top:.9rem !important}
 }
