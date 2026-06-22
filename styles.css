@@ -175,12 +175,14 @@ tr.career-row:hover td{background:var(--accent-dim)}
   .subtitle{margin-bottom:.55rem}
   .rule{padding:.5rem .6rem;margin-bottom:.6rem;font-size:.76rem;border-left-width:3px;border-radius:8px}
   .rule .lbl{font-size:.56rem;margin-right:.3rem}
-  .controls{gap:.4rem .6rem;padding:.4rem 0 .5rem;margin-bottom:.6rem}
+  .controls{flex-wrap:nowrap;gap:.4rem .5rem;padding:.4rem 0 .5rem;margin-bottom:.6rem}
   .field{gap:.18rem}
   .field>label{font-size:.54rem}
   select,input[type=number],input[type=text]{font-size:.82rem;padding:.38rem .5rem}
-  .tilegrid{gap:.35rem;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))}
-  .tile{gap:.05rem;padding:.35rem .3rem;border-radius:9px}
+  .search-wrap{flex:1 1 auto;min-width:0}
+  input[type=number]{width:3.2rem}
+  .tilegrid{gap:.3rem;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))}
+  .tile{gap:.05rem;padding:.3rem .25rem;border-radius:9px}
   .tile .ab{font-size:.82rem}
   .tile .tl{font-size:.64rem}
   .tile .ts{display:none}
