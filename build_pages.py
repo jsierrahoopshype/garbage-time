@@ -16,6 +16,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(HERE, "data", "garbage_time_for_web.json")
 
 BASE_URL = "https://jsierrahoopshype.github.io/garbage-time"
+# Public host the pages are served from; used for canonical, og:url, sitemap and robots.
+CANONICAL_BASE = "https://hoopsmatic.com/garbage-time"
 
 MIN_GAMES = 30
 TOP_N = 100
@@ -252,7 +254,7 @@ def compute_neighbors(players, k=6):
 
 
 def page_head(title, description, canonical_path, og_image=None, og_type="website"):
-    canonical = BASE_URL + "/" + canonical_path
+    canonical = CANONICAL_BASE + "/" + canonical_path
     img = og_image or (BASE_URL + "/")
     tags = [
         "<!DOCTYPE html>",
@@ -758,7 +760,7 @@ def write_sitemap(urls, lastmod):
 
 
 def write_robots():
-    body = "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n" % BASE_URL
+    body = "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n" % CANONICAL_BASE
     with open(os.path.join(HERE, "robots.txt"), "w", encoding="utf-8") as f:
         f.write(body)
 
@@ -789,14 +791,14 @@ def main():
     # full All-Star pool; each player page samples its own 6 (seeded by id)
     allstar_pool = [p for p in players if is_allstar(p["slug"])]
 
-    urls = [BASE_URL + "/", BASE_URL + "/p/index.html", BASE_URL + "/leaderboards/index.html"]
+    urls = [CANONICAL_BASE + "/", CANONICAL_BASE + "/p/index.html", CANONICAL_BASE + "/leaderboards/index.html"]
 
     for p in players:
         slug = slug_of[p["id"]]
         write("p/%s.html" % slug,
               render_player(p, slug, slug_of, neighbors_by_id[p["id"]], gpct_by_id,
                             allstar_pool, updated))
-        urls.append("%s/p/%s.html" % (BASE_URL, slug))
+        urls.append("%s/p/%s.html" % (CANONICAL_BASE, slug))
     write("p/index.html", render_players_index(players, slug_of, gpct_by_id, updated))
 
     season_keys = ["career"] + seasons
@@ -806,7 +808,7 @@ def main():
         for season in season_keys:
             write("leaderboards/%s-%s.html" % (board_key, season),
                   render_full_board(board_key, season, players, slug_of, seasons, updated))
-            urls.append("%s/leaderboards/%s-%s.html" % (BASE_URL, board_key, season))
+            urls.append("%s/leaderboards/%s-%s.html" % (CANONICAL_BASE, board_key, season))
             lb_pages += 1
 
     alias_pages = 0
