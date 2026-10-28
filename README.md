@@ -6,7 +6,7 @@ A single-page site that splits NBA box-score production into **official**, **rea
 - **Player search** with type-ahead → per-season + career drilldown (official vs real vs garbage, Δ highlighted), switchable across PTS/REB/AST/STL/BLK/TOV/3PM/eFG%/FG%.
 - **Three leaderboards:** Stat-Padders (most garbage-time points), Biggest Droppers (largest Δ PPG), Star Stat-Padders (filtered by official PPG, 15/20/25 toggle).
 - **Totals vs Per-Game** toggle, **season selector**, **min-games filter**.
-- Headshots from cdn.nba.com with a silhouette fallback. Dark theme, no frameworks, no build step.
+- Round headshots from nba-headshots (face-fill), with the player's initials when there is no photo. Dark theme, no frameworks, no build step.
 
 ## Running locally
 

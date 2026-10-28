@@ -154,7 +154,54 @@ def esc(s):
     return html.escape(str(s), quote=True)
 
 
+# Headshots: nba-headshots' face-fill portraits (the one HoopsMatic headshot look:
+# the face fills the circle). A player with no face-fill file shows his initials.
+FACE_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/"
+FACE_HASHES_URL = ("https://raw.githubusercontent.com/jsierrahoopshype/nba-headshots/main/"
+                   "players/headshots/face-fill/.hashes.json")
+FACE_STEMS_PATH = os.path.join(HERE, "data", "face_fill_stems.txt")
+NAME_SUFFIXES = {"Jr", "Sr", "II", "III", "IV", "V"}
+# On an image load error the circle swaps to the initials kept in data-ini.
+FACE_ONERROR = "this.parentNode.textContent=this.parentNode.dataset.ini"
+
+
+def load_face_stems():
+    """id -> face-fill stem. Refreshes data/face_fill_stems.txt from nba-headshots
+    when it can be reached; otherwise builds from the committed copy."""
+    stems = None
+    try:
+        from urllib.request import urlopen
+        with urlopen(FACE_HASHES_URL, timeout=30) as r:
+            stems = sorted(json.load(r)["files"])
+        with open(FACE_STEMS_PATH, "w", encoding="utf-8") as f:
+            f.write("\n".join(stems) + "\n")
+    except Exception:
+        with open(FACE_STEMS_PATH, encoding="utf-8") as f:
+            stems = [l.strip() for l in f if l.strip()]
+    return {s.split("-", 1)[0]: s for s in stems if s.split("-", 1)[0].isdigit()}
+
+
+FACE_STEM = {}
+
+
+def initials(name):
+    w = [x for x in name.replace(".", " ").split() if x not in NAME_SUFFIXES]
+    return (w[0][0] + (w[-1][0] if len(w) > 1 else "")).upper() if w else "?"
+
+
+def face(player, cls="hs", alt="", big=False):
+    """Round headshot, or the player's initials when there is no face-fill file."""
+    ini = esc(initials(player["name"]))
+    stem = FACE_STEM.get(str(player["id"]))
+    if not stem:
+        return '<span class="%s" data-ini="%s">%s</span>' % (cls, ini, ini)
+    src = "%sface-fill%s/%s.webp" % (FACE_BASE, "-320" if big else "", stem)
+    return ('<span class="%s" data-ini="%s"><img src="%s" alt="%s" loading="lazy" '
+            'decoding="async" onerror="%s"></span>' % (cls, ini, src, esc(alt), FACE_ONERROR))
+
+
 def headshot(pid):
+    """og:image only (read by social sites, not loaded by visitors' browsers)."""
     return "https://cdn.nba.com/headshots/nba/latest/260x190/%s.png" % pid
 
 
@@ -345,9 +392,7 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_pool, updat
     parts.append(nav_tabs(None))
 
     parts.append('<div class="ehead">')
-    parts.append('<img class="eimg" src="%s" alt="%s" '
-                 'onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
-                 % (headshot(player["id"]), esc(name)))
+    parts.append(face(player, "hs eimg", alt=name, big=True))
     parts.append('<div><h1>%s</h1><div class="esub">Garbage-time splits · '
                  '%d season%s · %d career GP</div></div>'
                  % (esc(name), len(seasons), "" if len(seasons) == 1 else "s", gp))
@@ -440,11 +485,10 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_pool, updat
         parts.append('<div class="egrid">')
         for nb in neighbors:
             share = gpct_of[nb["id"]]
-            parts.append('<a class="ecard" href="%s.html">'
-                         '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
+            parts.append('<a class="ecard" href="%s.html">%s'
                          '<span class="en">%s</span>'
                          '<span class="ec gpct" style="background:%s">%.2f%%</span></a>'
-                         % (slug_of[nb["id"]], headshot(nb["id"]), esc(nb["name"]),
+                         % (slug_of[nb["id"]], face(nb), esc(nb["name"]),
                             garbage_pct_color(share), share))
         parts.append("</div></div>")
 
@@ -462,11 +506,10 @@ def render_player(player, slug, slug_of, neighbors, gpct_of, allstar_pool, updat
         parts.append('<div class="egrid">')
         for a in sugg:
             share = gpct_of[a["id"]]
-            parts.append('<a class="ecard" href="%s.html">'
-                         '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
+            parts.append('<a class="ecard" href="%s.html">%s'
                          '<span class="en">%s</span>'
                          '<span class="ec gpct" style="background:%s">%.2f%%</span></a>'
-                         % (slug_of[a["id"]], headshot(a["id"]), esc(a["name"]),
+                         % (slug_of[a["id"]], face(a), esc(a["name"]),
                             garbage_pct_color(share), share))
         parts.append("</div></div>")
 
@@ -629,10 +672,9 @@ def render_lb_table(cols, rows, slug_of, sortable, empty_label):
         for i, r in enumerate(rows, 1):
             p = r["p"]
             pslug = slug_of[p["id"]]
-            namecell = ('<td class="left"><span class="pcell">'
-                        '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
+            namecell = ('<td class="left"><span class="pcell">%s'
                         '<a href="../p/%s.html">%s</a></span></td>'
-                        % (headshot(p["id"]), pslug, esc(p["name"])))
+                        % (face(p), pslug, esc(p["name"])))
             cells = []
             for header, is_d, fn, _d, bg in cols:
                 klass = "dcol" if is_d else ""
@@ -708,14 +750,13 @@ def render_players_index(players, slug_of, gpct_by_id, updated):
             off = pg(car["pts"][0], gpn)
             gar_pg = pg(car["pts"][2], gpn)
             share = gpct_by_id[p["id"]]
-            parts.append('<tr><td class="left"><span class="pcell">'
-                         '<img src="%s" alt="" onerror="this.onerror=null;this.style.visibility=\'hidden\'">'
+            parts.append('<tr><td class="left"><span class="pcell">%s'
                          '<a href="%s.html">%s</a></span></td>'
                          '<td data-label="GP">%d</td>'
                          '<td data-label="Official PPG">%.1f</td>'
                          '<td data-label="Garbage PPG">%.1f</td>'
                          '<td class="gpct" data-label="Garbage %%" style="background:%s">%.2f%%</td></tr>'
-                         % (headshot(p["id"]), slug_of[p["id"]], esc(p["name"]),
+                         % (face(p), slug_of[p["id"]], esc(p["name"]),
                             gpn, off, gar_pg, garbage_pct_color(share), share))
         parts.append("</tbody></table></div>")
     parts.append(SORT_SCRIPT)
@@ -784,6 +825,14 @@ def main():
         lastmod = datetime.fromisoformat(lastmod.replace("Z", "+00:00")).date().isoformat()
     except Exception:
         lastmod = date.today().isoformat()
+
+    FACE_STEM.update(load_face_stems())
+    # id -> stem for the players on the site, read by index.html (search + table)
+    with open(os.path.join(HERE, "data", "face_fill.json"), "w", encoding="utf-8") as f:
+        json.dump({str(p["id"]): FACE_STEM[str(p["id"])]
+                   for p in sorted(players, key=lambda p: int(p["id"]))
+                   if str(p["id"]) in FACE_STEM}, f, separators=(",", ":"))
+        f.write("\n")
 
     slug_of = build_slug_map(players)
     neighbors_by_id, gpct_by_id = compute_neighbors(players)
