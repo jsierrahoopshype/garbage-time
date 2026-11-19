@@ -1,5 +1,7 @@
 # HoopsMatic — NBA Garbage Time
 
+Live on HoopsMatic: https://hoopsmatic.com/garbage-time/
+
 A single-page site that splits NBA box-score production into **official**, **real**, and
 **garbage-time** buckets, so you can see who pads their numbers in blowouts.
 
