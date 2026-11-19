@@ -4,6 +4,7 @@ Usage:  python3 build_pages.py
 """
 
 import bisect
+import hashlib
 import html
 import json
 import os
@@ -300,9 +301,25 @@ def compute_neighbors(players, k=6):
     return neighbors_by_id, gpct_by_id
 
 
+# The share image for a page with no player headshot (the leaderboards and the
+# All Players index): the Garbage Time section card the hoopsmatic.com Worker
+# serves, 1200x630. These pages used to point og:image at the github.io site
+# address, a web page, not an image (November 19, 2026).
+SECTION_CARD = "https://hoopsmatic.com/og-images/sections/garbage-time.jpg?v=1"
+
+
 def page_head(title, description, canonical_path, og_image=None, og_type="website"):
     canonical = CANONICAL_BASE + "/" + canonical_path
-    img = og_image or (BASE_URL + "/")
+    img = og_image or SECTION_CARD
+    # The card is 1200x630: its size, a large twitter card and twitter:image.
+    # A player page keeps its NBA.com headshot and its "summary" card.
+    if img == SECTION_CARD:
+        card_tags = ['<meta property="og:image:width" content="1200">',
+                     '<meta property="og:image:height" content="630">',
+                     '<meta name="twitter:card" content="summary_large_image">',
+                     '<meta name="twitter:image" content="%s">' % esc(img)]
+    else:
+        card_tags = ['<meta name="twitter:card" content="summary">']
     tags = [
         "<!DOCTYPE html>",
         '<html lang="en">',
@@ -318,7 +335,7 @@ def page_head(title, description, canonical_path, og_image=None, og_type="websit
         '<meta property="og:description" content="%s">' % esc(description),
         '<meta property="og:url" content="%s">' % esc(canonical),
         '<meta property="og:image" content="%s">' % esc(img),
-        '<meta name="twitter:card" content="summary">',
+    ] + card_tags + [
         FONTS,
         '<link rel="stylesheet" href="../styles.css">',
         "</head>",
@@ -790,14 +807,64 @@ def render_leaderboards_index(players, slug_of, seasons, updated):
     return "\n".join(parts)
 
 
-def write_sitemap(urls, lastmod):
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+# Per-URL <lastmod> (November 19, 2026): each URL's date is the day its page
+# last changed, not the data file's date for every URL. data/sitemap-hashes.json
+# keeps {url: {"hash": sha256 of the page file, "lastmod": date}}:
+#   same hash         keep the stored date
+#   changed or new    today's date (UTC), store the new hash
+# A URL with no stored hash yet keeps the date the committed sitemap.xml gives
+# it (the first run only seeds the store), else today. So a build with no
+# content change leaves every <lastmod> as it was.
+SITEMAP_HASHES_PATH = os.path.join(HERE, "data", "sitemap-hashes.json")
+
+
+def page_file_for(url):
+    rel = url[len(CANONICAL_BASE) + 1:] if url.startswith(CANONICAL_BASE + "/") else None
+    if rel is None:
+        raise ValueError("sitemap URL not under %s: %s" % (CANONICAL_BASE, url))
+    return os.path.join(HERE, rel or "index.html")
+
+
+def page_hash(url):
+    with open(page_file_for(url), "rb") as f:
+        return hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def write_sitemap(urls, fallback_lastmod):
+    try:
+        with open(SITEMAP_HASHES_PATH, encoding="utf-8") as f:
+            store = json.load(f).get("urls", {})
+    except (OSError, ValueError):
+        store = {}
+    committed = {}
+    try:
+        with open(os.path.join(HERE, "sitemap.xml"), encoding="utf-8") as f:
+            for loc, lm in re.findall(r"<loc>([^<]+)</loc><lastmod>([^<]+)</lastmod>", f.read()):
+                committed[html.unescape(loc)] = lm
+    except OSError:
+        pass
+    today = datetime.utcnow().date().isoformat()
+    new_store, lines = {}, ['<?xml version="1.0" encoding="UTF-8"?>',
+                            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for u in urls:
-        lines.append("  <url><loc>%s</loc><lastmod>%s</lastmod></url>" % (esc(u), lastmod))
+        h = page_hash(u)
+        old = store.get(u)
+        if old and old.get("hash") == h:
+            lm = old["lastmod"]
+        elif old:
+            lm = today
+        else:
+            lm = committed.get(u) or fallback_lastmod or today
+        new_store[u] = {"hash": h, "lastmod": lm}
+        lines.append("  <url><loc>%s</loc><lastmod>%s</lastmod></url>" % (esc(u), lm))
     lines.append("</urlset>\n")
     with open(os.path.join(HERE, "sitemap.xml"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    with open(SITEMAP_HASHES_PATH, "w", encoding="utf-8") as f:
+        json.dump({"_about": "Content hash and <lastmod> per sitemap URL. Written by "
+                             "build_pages.py; commit it with sitemap.xml.",
+                   "urls": new_store}, f, indent=1, sort_keys=True)
+        f.write("\n")
 
 
 def write_robots():
