@@ -156,14 +156,13 @@ def esc(s):
 
 
 # Headshots: nba-headshots' face-fill portraits (the one HoopsMatic headshot look:
-# the face fills the circle). A player with no face-fill file shows his initials.
+# the face fills the circle). A player with no face-fill file shows no picture (never initials).
 FACE_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/"
 FACE_HASHES_URL = ("https://raw.githubusercontent.com/jsierrahoopshype/nba-headshots/main/"
                    "players/headshots/face-fill/.hashes.json")
 FACE_STEMS_PATH = os.path.join(HERE, "data", "face_fill_stems.txt")
-NAME_SUFFIXES = {"Jr", "Sr", "II", "III", "IV", "V"}
-# On an image load error the circle swaps to the initials kept in data-ini.
-FACE_ONERROR = "this.parentNode.textContent=this.parentNode.dataset.ini"
+# On an image load error the whole circle goes (never initials).
+FACE_ONERROR = "this.parentNode.remove()"
 
 
 def load_face_stems():
@@ -185,20 +184,14 @@ def load_face_stems():
 FACE_STEM = {}
 
 
-def initials(name):
-    w = [x for x in name.replace(".", " ").split() if x not in NAME_SUFFIXES]
-    return (w[0][0] + (w[-1][0] if len(w) > 1 else "")).upper() if w else "?"
-
-
 def face(player, cls="hs", alt="", big=False):
-    """Round headshot, or the player's initials when there is no face-fill file."""
-    ini = esc(initials(player["name"]))
+    """Round headshot, or nothing at all when there is no face-fill file."""
     stem = FACE_STEM.get(str(player["id"]))
     if not stem:
-        return '<span class="%s" data-ini="%s">%s</span>' % (cls, ini, ini)
+        return ""
     src = "%sface-fill%s/%s.webp" % (FACE_BASE, "-320" if big else "", stem)
-    return ('<span class="%s" data-ini="%s"><img src="%s" alt="%s" loading="lazy" '
-            'decoding="async" onerror="%s"></span>' % (cls, ini, src, esc(alt), FACE_ONERROR))
+    return ('<span class="%s"><img src="%s" alt="%s" loading="lazy" '
+            'decoding="async" onerror="%s"></span>' % (cls, src, esc(alt), FACE_ONERROR))
 
 
 def headshot(pid):
@@ -825,9 +818,17 @@ def page_file_for(url):
     return os.path.join(HERE, rel or "index.html")
 
 
+# Headshot markup is decoration, not content: it is left out of the hash, so a
+# change in how faces are drawn (November 25, 2026: no initials circle when a
+# player has no photo) moves no <lastmod>. Covers the old and the new markup.
+FACE_MARKUP = re.compile(
+    rb'<span class="hs(?: eimg)?"(?: data-ini="[^"]*")?>(?:<img [^>]*>|[^<]*)</span>')
+
+
 def page_hash(url):
     with open(page_file_for(url), "rb") as f:
-        return hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
+        data = f.read().replace(b"\r\n", b"\n")
+    return hashlib.sha256(FACE_MARKUP.sub(b"", data)).hexdigest()
 
 
 def write_sitemap(urls, fallback_lastmod):
