@@ -139,7 +139,7 @@ tr.career-row:hover td{background:var(--accent-dim)}
 .back:hover{color:var(--accent);text-decoration:none}
 .ehead{display:flex;align-items:center;gap:1rem;border-bottom:1px solid var(--border);
   padding-bottom:1rem;margin-bottom:1.2rem}
-/* headshots: nba-headshots face-fill, the face fills a grey circle; initials when no photo */
+/* headshots: nba-headshots face-fill, the face fills a grey circle; nothing when no photo */
 .hs{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;
   background:#e8e8ed;color:#55555c;font-weight:700;line-height:1;flex-shrink:0}
 .hs img{width:100%;height:100%;object-fit:cover;display:block}

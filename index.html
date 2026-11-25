@@ -80,19 +80,14 @@
 
 // Headshots: nba-headshots' face-fill portraits (face fills the circle). FACE maps
 // player id -> file stem (data/face_fill.json, written by build_pages.py); a player
-// without a file, or whose image fails to load, shows his initials instead.
+// without a file, or whose image fails to load, shows no picture at all (never initials).
 const FACE_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face-fill/";
-const INI_SUFFIXES = new Set(["Jr", "Sr", "II", "III", "IV", "V"]);
 let FACE = {};
-function initials(name) {
-  const w = String(name).replace(/\./g, " ").split(/\s+/).filter(x => x && !INI_SUFFIXES.has(x));
-  return w.length ? (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase() : "?";
-}
 function face(p) {
-  const ini = escapeHtml(initials(p.name)), stem = FACE[p.id];
+  const stem = FACE[p.id];
   return stem
-    ? `<span class="hs" data-ini="${ini}"><img src="${FACE_BASE}${stem}.webp" alt="" loading="lazy" decoding="async" onerror="this.parentNode.textContent=this.parentNode.dataset.ini"></span>`
-    : `<span class="hs" data-ini="${ini}">${ini}</span>`;
+    ? `<span class="hs"><img src="${FACE_BASE}${stem}.webp" alt="" loading="lazy" decoding="async" onerror="this.parentNode.remove()"></span>`
+    : "";
 }
 
 const PER_STAT = {
