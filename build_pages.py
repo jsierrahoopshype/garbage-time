@@ -194,9 +194,65 @@ def face(player, cls="hs", alt="", big=False):
             'decoding="async" onerror="%s"></span>' % (cls, src, esc(alt), FACE_ONERROR))
 
 
+# og:image of a player page: his NBA.com 260x190 headshot. NBA.com answers an
+# id it has no photo of with a grey silhouette (HTTP 200, byte for byte its
+# file for id 0 at that size): that counts as no photo, and the page shares
+# the section card instead (never the silhouette). The build compares each
+# headshot's SHA-256 with id 0's, fetched from cdn.nba.com itself (hoopsmatic.com's
+# /img/nba-cdn/ puts automated clients through a bot check), and keeps the
+# answers in data/nba_photos.json for a build that can't reach cdn.nba.com.
+NBA_HEADSHOT = "https://cdn.nba.com/headshots/nba/latest/260x190/%s.png"
+# The 260x190 silhouette's SHA-256 (4,937 bytes, November 2026): only a stand-in
+# for when id 0 can't be fetched.
+NBA_SILHOUETTE_SHA256 = "b3ebe78bfd1cecb8880e51e6a48c9093c5cfb7065f981826d12fb4c01a1b0965"
+NBA_PHOTOS_PATH = os.path.join(HERE, "data", "nba_photos.json")
+NBA_PHOTO = {}
+
+
+def _nba_png(pid):
+    from urllib.request import Request, urlopen
+    with urlopen(Request(NBA_HEADSHOT % pid, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as r:
+        return r.read()
+
+
+def load_nba_photos(ids):
+    """id -> 1 (a real NBA.com photo) or 0 (the silhouette, or none there). An id
+    that can't be checked keeps its answer in data/nba_photos.json (1 if new)."""
+    from concurrent.futures import ThreadPoolExecutor
+    from urllib.error import HTTPError
+    try:
+        with open(NBA_PHOTOS_PATH, encoding="utf-8") as f:
+            known = json.load(f).get("photo", {})
+    except (OSError, ValueError):
+        known = {}
+    try:
+        silhouette = hashlib.sha256(_nba_png(0)).hexdigest()
+    except Exception:
+        silhouette = NBA_SILHOUETTE_SHA256
+
+    def check(pid):
+        try:
+            return pid, int(hashlib.sha256(_nba_png(pid)).hexdigest() != silhouette)
+        except HTTPError as e:
+            return pid, 0 if e.code == 404 else known.get(pid, 1)
+        except Exception:
+            return pid, known.get(pid, 1)
+
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        photos = dict(ex.map(check, sorted(set(ids), key=int)))
+    with open(NBA_PHOTOS_PATH, "w", encoding="utf-8") as f:
+        json.dump({"_about": "1 if NBA.com has a real 260x190 photo of the id, 0 if it "
+                             "sends its silhouette (the id 0 file) or nothing. Written by "
+                             "build_pages.py; the og:image of a player page.",
+                   "photo": photos}, f, indent=0, sort_keys=True)
+        f.write("\n")
+    return photos
+
+
 def headshot(pid):
-    """og:image only (read by social sites, not loaded by visitors' browsers)."""
-    return "https://cdn.nba.com/headshots/nba/latest/260x190/%s.png" % pid
+    """og:image only (read by social sites, not loaded by visitors' browsers):
+    his NBA.com headshot, or None (the section card) when NBA.com has no photo."""
+    return NBA_HEADSHOT % pid if NBA_PHOTO.get(str(pid), 1) else None
 
 
 def bucket(o, key, b):
@@ -294,8 +350,8 @@ def compute_neighbors(players, k=6):
     return neighbors_by_id, gpct_by_id
 
 
-# The share image for a page with no player headshot (the leaderboards and the
-# All Players index): the Garbage Time section card the hoopsmatic.com Worker
+# The share image for a page with no player headshot (the leaderboards, the
+# All Players index, and a player NBA.com has no photo of): the Garbage Time section card the hoopsmatic.com Worker
 # serves, 1200x630. These pages used to point og:image at the github.io site
 # address, a web page, not an image (November 19, 2026).
 SECTION_CARD = "https://hoopsmatic.com/og-images/sections/garbage-time.jpg?v=1"
@@ -305,7 +361,8 @@ def page_head(title, description, canonical_path, og_image=None, og_type="websit
     canonical = CANONICAL_BASE + "/" + canonical_path
     img = og_image or SECTION_CARD
     # The card is 1200x630: its size, a large twitter card and twitter:image.
-    # A player page keeps its NBA.com headshot and its "summary" card.
+    # A player page keeps its NBA.com headshot and its "summary" card (one
+    # NBA.com has no photo of gets the section card).
     if img == SECTION_CARD:
         card_tags = ['<meta property="og:image:width" content="1200">',
                      '<meta property="og:image:height" content="630">',
@@ -895,6 +952,7 @@ def main():
         lastmod = date.today().isoformat()
 
     FACE_STEM.update(load_face_stems())
+    NBA_PHOTO.update(load_nba_photos(str(p["id"]) for p in players))
     # id -> stem for the players on the site, read by index.html (search + table)
     with open(os.path.join(HERE, "data", "face_fill.json"), "w", encoding="utf-8") as f:
         json.dump({str(p["id"]): FACE_STEM[str(p["id"])]
